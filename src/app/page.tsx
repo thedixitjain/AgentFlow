@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
@@ -9,16 +10,19 @@ import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types
 import { storage } from '@/lib/storage'
 import { generateInsights } from '@/lib/insights'
 
-export default function Home() {
+function HomeContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [documents, setDocuments] = useState<DocumentFile[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [activeDocument, setActiveDocument] = useState<string | null>(null)
-  const [showLanding, setShowLanding] = useState(true)
   const [currentChatId, setCurrentChatId] = useState<string>('')
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
   const [insights, setInsights] = useState<DocumentInsight[]>([])
   const [showInsights, setShowInsights] = useState(false)
+
+  const showLanding = !searchParams.get('chat')
 
   useEffect(() => {
     setChatHistory(storage.getChats())
@@ -46,7 +50,7 @@ export default function Home() {
       return [...prev, file]
     })
     setActiveDocument(file.name)
-    setShowLanding(false)
+    router.push('/?chat=true')
     
     // Generate insights
     const docInsights = generateInsights(file)
@@ -63,7 +67,7 @@ export default function Home() {
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, systemMessage])
-  }, [])
+  }, [router])
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!currentChatId) {
@@ -175,13 +179,14 @@ export default function Home() {
     setMessages([])
     setActiveDocument(null)
     setCurrentChatId(Date.now().toString())
-  }, [])
+    router.push('/?chat=true')
+  }, [router])
 
   const handleLoadChat = useCallback((chat: ChatHistory) => {
     setMessages(chat.messages)
     setCurrentChatId(chat.id)
-    setShowLanding(false)
-  }, [])
+    router.push('/?chat=true')
+  }, [router])
 
   const handleDeleteChat = useCallback((id: string) => {
     storage.deleteChat(id)
@@ -192,21 +197,21 @@ export default function Home() {
   }, [currentChatId, handleNewChat])
 
   const handleBackToHome = useCallback(() => {
-    setShowLanding(true)
     setMessages([])
     setDocuments([])
     setActiveDocument(null)
     setCurrentChatId('')
     setInsights([])
     setShowInsights(false)
-  }, [])
+    router.push('/')
+  }, [router])
 
   if (showLanding) {
     return (
       <Landing 
         onStart={() => {
-          setShowLanding(false)
           setCurrentChatId(Date.now().toString())
+          router.push('/?chat=true')
         }} 
         onFileUpload={handleFileUpload}
         recentChats={chatHistory.slice(0, 3)}
@@ -255,5 +260,17 @@ export default function Home() {
         />
       )}
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-black">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
