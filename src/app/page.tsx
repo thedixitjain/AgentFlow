@@ -1,111 +1,136 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { Header } from '@/components/Header'
+import { useState, useCallback } from 'react'
 import { Sidebar } from '@/components/Sidebar'
-import { ChatInterface } from '@/components/ChatInterface'
-import { OrchestratorAgent } from '@/lib/agents/orchestrator'
-import { ChatMessage, DatasetInfo, DocumentInfo } from '@/lib/agents/types'
+import { Chat } from '@/components/Chat'
+import { Landing } from '@/components/Landing'
+import { DocumentFile, Message } from '@/lib/types'
 
 export default function Home() {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [datasets, setDatasets] = useState<DatasetInfo[]>([])
-  const [documents, setDocuments] = useState<DocumentInfo[]>([])
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [documents, setDocuments] = useState<DocumentFile[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [activeDocument, setActiveDocument] = useState<string | null>(null)
+  const [showLanding, setShowLanding] = useState(true)
 
-  // Create orchestrator instance (memoized to persist across renders)
-  const orchestrator = useMemo(() => new OrchestratorAgent(), [])
-
-  const handleDataUpload = useCallback((data: Array<Record<string, unknown>>, fileName: string) => {
-    const info = orchestrator.loadData(data, fileName)
-    setDatasets(prev => [...prev.filter(d => d.name !== fileName), info])
+  const handleFileUpload = useCallback((file: DocumentFile) => {
+    setDocuments(prev => {
+      const exists = prev.find(d => d.name === file.name)
+      if (exists) return prev
+      return [...prev, file]
+    })
+    setActiveDocument(file.name)
+    setShowLanding(false)
     
-    // Add system message
-    const systemMessage: ChatMessage = {
+    const systemMessage: Message = {
       id: Date.now().toString(),
-      type: 'assistant',
-      content: `✅ **${fileName}** loaded successfully!\n\n- **Rows:** ${info.rows.toLocaleString()}\n- **Columns:** ${info.columns.join(', ')}\n\nYou can now ask questions about this data.`,
-      agent: 'data',
+      role: 'assistant',
+      content: `**${file.name}** loaded successfully.\n\n` +
+        (file.type === 'csv' || file.type === 'xlsx' 
+          ? `**${file.data?.length.toLocaleString()}** rows, **${file.columns?.length}** columns.\n\nAsk me anything about this data.`
+          : `**${file.content?.split(/\s+/).length.toLocaleString()}** words.\n\nAsk me to summarize or find specific information.`),
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, systemMessage])
-  }, [orchestrator])
-
-  const handleDocumentUpload = useCallback((text: string, fileName: string) => {
-    const info = orchestrator.loadDocument(text, fileName)
-    setDocuments(prev => [...prev.filter(d => d.name !== fileName), info])
-    
-    // Add system message
-    const systemMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'assistant',
-      content: `✅ **${fileName}** loaded successfully!\n\n- **Words:** ${info.wordCount.toLocaleString()}\n- **Key Topics:** ${info.keywords.slice(0, 5).join(', ')}\n\nYou can now ask questions about this document.`,
-      agent: 'research',
-      timestamp: new Date(),
-    }
-    setMessages(prev => [...prev, systemMessage])
-  }, [orchestrator])
+  }, [])
 
   const handleSendMessage = useCallback(async (content: string) => {
-    // Add user message
-    const userMessage: ChatMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      type: 'user',
+      role: 'user',
       content,
       timestamp: new Date(),
     }
     setMessages(prev => [...prev, userMessage])
-    setIsProcessing(true)
+    setIsLoading(true)
 
-    // Simulate processing delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      const activeDoc = documents.find(d => d.name === activeDocument)
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: content,
+          document: activeDoc ? {
+            name: activeDoc.name,
+            type: activeDoc.type,
+            content: activeDoc.content,
+            data: activeDoc.data?.slice(0, 50),
+            columns: activeDoc.columns,
+          } : null,
+          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          mode: activeDoc ? 'document' : 'chat',
+        }),
+      })
 
-    // Process query through orchestrator
-    const result = orchestrator.processQuery(content)
-
-    // Create assistant message
-    const assistantMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      type: 'assistant',
-      content: result.message,
-      agent: result.agent,
-      timestamp: new Date(),
-      data: result.data,
-      chart: result.chart,
+      const data = await response.json()
+      
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.content,
+        timestamp: new Date(),
+      }])
+    } catch {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Connection error. Please try again.',
+        timestamp: new Date(),
+      }])
+    } finally {
+      setIsLoading(false)
     }
+  }, [documents, activeDocument, messages])
 
-    setMessages(prev => [...prev, assistantMessage])
-    setIsProcessing(false)
-  }, [orchestrator])
+  const handleRemoveDocument = useCallback((name: string) => {
+    setDocuments(prev => prev.filter(d => d.name !== name))
+    if (activeDocument === name) {
+      const remaining = documents.filter(d => d.name !== name)
+      setActiveDocument(remaining.length > 0 ? remaining[0].name : null)
+    }
+  }, [activeDocument, documents])
 
-  const handleClearAll = useCallback(() => {
-    orchestrator.clearAll()
-    setDatasets([])
-    setDocuments([])
+  const handleNewChat = useCallback(() => {
     setMessages([])
-  }, [orchestrator])
+    setActiveDocument(null)
+  }, [])
+
+  const handleBackToHome = useCallback(() => {
+    setShowLanding(true)
+    setMessages([])
+    setDocuments([])
+    setActiveDocument(null)
+  }, [])
+
+  if (showLanding) {
+    return (
+      <Landing 
+        onStart={() => setShowLanding(false)} 
+        onFileUpload={handleFileUpload} 
+      />
+    )
+  }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <Header />
+    <div className="h-screen flex bg-black">
+      <Sidebar
+        documents={documents}
+        activeDocument={activeDocument}
+        onFileUpload={handleFileUpload}
+        onSelectDocument={setActiveDocument}
+        onRemoveDocument={handleRemoveDocument}
+        onNewChat={handleNewChat}
+        onBackToHome={handleBackToHome}
+      />
       
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          datasets={datasets}
-          documents={documents}
-          onDataUpload={handleDataUpload}
-          onDocumentUpload={handleDocumentUpload}
-          onClearAll={handleClearAll}
-        />
-        
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <ChatInterface
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isProcessing={isProcessing}
-          />
-        </main>
-      </div>
+      <Chat
+        messages={messages}
+        isLoading={isLoading}
+        onSendMessage={handleSendMessage}
+        hasDocument={!!activeDocument}
+      />
     </div>
   )
 }

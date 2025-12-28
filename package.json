@@ -1,7 +1,7 @@
 {
   "name": "agentflow",
   "version": "2.0.0",
-  "description": "AgentFlow - Multi-Agent AI System for Data Analysis",
+  "description": "AgentFlow - AI Document Intelligence Platform for SMBs",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,31 +10,32 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "ai": "^3.4.0",
     "clsx": "^2.1.1",
-    "framer-motion": "^11.15.0",
+    "groq-sdk": "^0.8.0",
     "lucide-react": "^0.468.0",
-    "next": "^16.1.1",
+    "next": "^14.2.0",
     "papaparse": "^5.4.1",
-    "pdfjs-dist": "^4.0.379",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-markdown": "^9.0.1",
     "recharts": "^2.15.0",
     "tailwind-merge": "^2.6.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
     "@types/node": "^20.0.0",
     "@types/papaparse": "^5.3.14",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.0",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.1",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^8.50.1"
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

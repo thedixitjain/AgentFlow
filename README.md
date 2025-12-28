@@ -1,82 +1,49 @@
 # AgentFlow
 
-**Multi-Agent AI System for Data Analysis**
+AI-powered document intelligence platform for modern businesses. Upload CSV, Excel, PDF, or text files and query them using natural language.
 
-A client-side multi-agent system that routes natural language queries to specialized AI agents for structured data analysis (CSV/Excel) and document processing (PDF/TXT).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/thedixitjain/AgentFlow&env=GROQ_API_KEY)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/thedixitjain/AgentFlow)
+---
+
+## Features
+
+- **Document Analysis** — Upload and query CSV, Excel, PDF, TXT files
+- **AI Chat** — General-purpose assistant for coding and analysis
+- **Streaming** — Real-time token streaming responses
+- **Visualizations** — Auto-generated charts from data queries
+- **Voice Input** — Speech-to-text for hands-free interaction
+- **Quick Insights** — Auto-generated metrics from uploaded data
+- **Export** — Download conversations as Markdown
 
 ---
 
 ## Architecture
 
 ```
-                              ┌─────────────────────┐
-                              │   USER INTERFACE    │
-                              │  (Next.js + React)  │
-                              └──────────┬──────────┘
-                                         │
-                              ┌──────────▼──────────┐
-                              │    ORCHESTRATOR     │
-                              │  Query Classifier   │
-                              │  Intent Detection   │
-                              │  Agent Router       │
-                              └──────────┬──────────┘
-                                         │
-                    ┌────────────────────┴────────────────────┐
-                    │                                         │
-         ┌──────────▼──────────┐               ┌──────────────▼──────────────┐
-         │  DATA INTELLIGENCE  │               │     RESEARCH ASSISTANT      │
-         │       AGENT         │               │           AGENT             │
-         ├─────────────────────┤               ├─────────────────────────────┤
-         │ CSV/Excel Parsing   │               │ PDF Text Extraction         │
-         │ Aggregations        │               │ Extractive Summarization    │
-         │ Statistical Ops     │               │ TF-IDF Keyword Extraction   │
-         │ Chart Generation    │               │ Semantic Search             │
-         │ Ranking/Filtering   │               │ Context-Aware Q&A           │
-         └─────────────────────┘               └─────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                      AGENTFLOW v2.0                        │
+├────────────────────────────────────────────────────────────┤
+│  Frontend          │  API Layer        │  LLM              │
+│  Next.js 14        │  Edge Functions   │  Groq             │
+│  React 18          │  SSE Streaming    │  Llama 3.1 70B    │
+│  TypeScript        │                   │                   │
+│  Tailwind CSS      │                   │                   │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Tech Stack
 
-| Category | Technologies |
-|----------|-------------|
-| Frontend | Next.js 16, React 18, TypeScript, Tailwind CSS |
-| Visualization | Recharts |
-| Data Processing | PapaParse (CSV), SheetJS (Excel), PDF.js |
-| NLP | Custom Query Classifier, Extractive Summarization, TF-IDF |
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 14, React 18, TypeScript |
+| Styling | Tailwind CSS |
+| LLM | Groq API (Llama 3.1 70B) |
+| Charts | Recharts |
+| File Parsing | PapaParse, SheetJS |
 | Deployment | Vercel |
-
----
-
-## Features
-
-- **Intelligent Query Routing** — Orchestrator classifies queries and routes to appropriate agent
-- **Data Analysis** — Natural language queries on tabular data with auto-generated charts
-- **Document Processing** — Summarization, keyword extraction, semantic Q&A
-- **Privacy-First** — All processing client-side, no data leaves browser
-- **Sub-second Response** — No server round-trips
-
----
-
-## Project Structure
-
-```
-src/
-├── app/                     # Next.js App Router
-├── components/              # React Components
-│   ├── ui/                  # Reusable primitives
-│   ├── ChatInterface.tsx    # Chat UI
-│   ├── ChartDisplay.tsx     # Dynamic visualizations
-│   └── FileUpload.tsx       # Drag & drop upload
-└── lib/
-    └── agents/              # AI Agent implementations
-        ├── orchestrator.ts  # Query routing logic
-        ├── data-agent.ts    # Data analysis
-        └── research-agent.ts # Document processing
-```
 
 ---
 
@@ -86,28 +53,25 @@ src/
 git clone https://github.com/thedixitjain/AgentFlow.git
 cd AgentFlow
 npm install
+```
+
+Create `.env.local`:
+```
+GROQ_API_KEY=your_api_key
+```
+
+```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`
-
 ---
 
-## Usage
+## Deploy
 
-**Data Analysis:**
-```
-"What is the total revenue?"
-"Show average sales by category"
-"Top 5 customers by sales"
-```
-
-**Document Analysis:**
-```
-"Summarize this document"
-"Extract key topics"
-"What are the main findings?"
-```
+1. Push to GitHub
+2. Import to Vercel
+3. Add `GROQ_API_KEY` environment variable
+4. Deploy
 
 ---
 

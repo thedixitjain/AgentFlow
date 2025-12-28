@@ -2,26 +2,21 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
 
 export const metadata: Metadata = {
-  title: 'Multi-Agent AI System | Intelligent Data & Research Analysis',
-  description: 'A sophisticated multi-agent AI system for data analysis and research document processing with natural language queries. Built with Next.js, TypeScript, and modern AI techniques.',
-  keywords: ['AI', 'Machine Learning', 'Data Analysis', 'Research Assistant', 'Multi-Agent System', 'NLP', 'Next.js', 'TypeScript'],
-  authors: [{ name: 'AI Developer' }],
+  title: 'AgentFlow | AI Document Intelligence',
+  description: 'Transform your documents into actionable insights with AI-powered analysis. Built for modern businesses.',
+  keywords: ['AI', 'document analysis', 'data intelligence', 'LLM', 'business analytics'],
+  authors: [{ name: 'Dixit Jain' }],
   openGraph: {
-    title: 'Multi-Agent AI System',
-    description: 'Intelligent Data Analysis & Research Assistant Platform',
+    title: 'AgentFlow | AI Document Intelligence',
+    description: 'Transform your documents into actionable insights with AI-powered analysis.',
     type: 'website',
-    images: ['/og-image.png'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Multi-Agent AI System',
-    description: 'Intelligent Data Analysis & Research Assistant Platform',
-  },
-  icons: {
-    icon: '/favicon.svg',
   },
 }
 
@@ -31,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.className} antialiased`}>{children}</body>
     </html>
   )
 }
