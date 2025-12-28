@@ -5,14 +5,16 @@ import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { Upload, ArrowRight, FileText, BarChart2, Zap, Github } from 'lucide-react'
-import { DocumentFile } from '@/lib/types'
+import { DocumentFile, ChatHistory } from '@/lib/types'
 
 interface LandingProps {
   onStart: () => void
   onFileUpload: (file: DocumentFile) => void
+  recentChats: ChatHistory[]
+  onLoadChat: (chat: ChatHistory) => void
 }
 
-export function Landing({ onStart, onFileUpload }: LandingProps) {
+export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: LandingProps) {
   const [isUploading, setIsUploading] = useState(false)
 
   const processFile = useCallback(async (file: File) => {
@@ -175,6 +177,27 @@ export function Landing({ onStart, onFileUpload }: LandingProps) {
             </p>
           </div>
         </div>
+
+        {/* Recent Chats */}
+        {recentChats.length > 0 && (
+          <div className="mt-12">
+            <h3 className="text-sm text-zinc-500 mb-4">Continue where you left off</h3>
+            <div className="grid gap-3">
+              {recentChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => onLoadChat(chat)}
+                  className="p-4 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 transition-all text-left"
+                >
+                  <p className="text-sm font-medium truncate">{chat.title}</p>
+                  <p className="text-xs text-zinc-600 mt-1">
+                    {chat.messages.length} messages · {new Date(chat.updatedAt).toLocaleDateString()}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer */}

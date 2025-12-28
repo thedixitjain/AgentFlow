@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Groq from 'groq-sdk'
 
 const groq = new Groq({
@@ -19,15 +19,27 @@ interface ChatRequest {
 }
 
 export async function POST(request: NextRequest) {
+  const encoder = new TextEncoder()
+
   try {
     const body: ChatRequest = await request.json()
     const { message, document, history, mode } = body
 
     if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json(
-        { content: 'API key not configured. Please add GROQ_API_KEY to environment variables.' },
-        { status: 200 }
-      )
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"content":"API key not configured. Please add GROQ_API_KEY to environment variables."}\n\n'))
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+          controller.close()
+        },
+      })
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      })
     }
 
     let systemPrompt = ''
@@ -88,16 +100,50 @@ Be concise, helpful, and use markdown formatting.`
       messages,
       temperature: 0.4,
       max_tokens: 2048,
+      stream: true,
     })
 
-    const content = completion.choices[0]?.message?.content || 'No response generated'
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || ''
+            if (content) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+          controller.close()
+        } catch (error) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: 'Error generating response' })}\n\n`))
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+          controller.close()
+        }
+      },
+    })
 
-    return NextResponse.json({ content })
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('Chat API error:', error)
-    return NextResponse.json(
-      { content: 'I encountered an error. Please check your API key and try again.' },
-      { status: 200 }
-    )
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"content":"Error processing request. Please try again."}\n\n'))
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
+      },
+    })
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   }
 }
