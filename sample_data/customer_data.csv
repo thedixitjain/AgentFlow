@@ -1,0 +1,31 @@
+Customer_ID,Name,Age,Gender,Location,Join_Date,Total_Spent,Orders_Count,Segment
+C001,John Smith,34,M,New York,2022-03-15,2400,4,Premium
+C002,Sarah Johnson,28,F,Los Angeles,2022-05-20,1200,8,Regular
+C003,Michael Brown,45,M,Chicago,2022-01-10,3600,6,Premium
+C004,Emily Davis,32,F,Houston,2022-07-03,1800,3,Regular
+C005,David Wilson,29,M,Phoenix,2022-09-12,800,2,Basic
+C006,Lisa Anderson,38,F,Philadelphia,2022-02-28,2200,5,Premium
+C007,James Taylor,41,M,San Antonio,2022-06-15,1600,4,Regular
+C008,Jennifer Martinez,26,F,San Diego,2022-08-07,3200,7,Premium
+C009,Robert Garcia,35,M,Dallas,2022-04-22,1400,3,Regular
+C010,Maria Rodriguez,31,F,San Jose,2022-10-05,2000,5,Regular
+C011,Christopher Lee,42,M,Austin,2022-01-18,2800,6,Premium
+C012,Michelle White,27,F,Jacksonville,2022-11-30,900,2,Basic
+C013,Daniel Harris,39,M,Fort Worth,2022-03-08,1700,4,Regular
+C014,Amanda Clark,33,F,Columbus,2022-05-14,2100,5,Premium
+C015,Matthew Lewis,30,M,Charlotte,2022-07-26,1300,3,Regular
+C016,Jessica Walker,36,F,San Francisco,2022-09-02,2600,6,Premium
+C017,Andrew Hall,44,M,Indianapolis,2022-02-11,1500,3,Regular
+C018,Ashley Allen,25,F,Seattle,2022-12-18,3800,8,Premium
+C019,Joshua Young,37,M,Denver,2022-04-07,1100,2,Basic
+C020,Stephanie King,40,F,Washington,2022-06-29,1900,4,Regular
+C021,Ryan Wright,43,M,Boston,2022-08-15,2500,5,Premium
+C022,Nicole Lopez,29,F,El Paso,2022-10-22,1600,3,Regular
+C023,Brandon Hill,31,M,Detroit,2022-01-05,2300,6,Premium
+C024,Kimberly Scott,34,F,Nashville,2022-03-19,1200,2,Regular
+C025,Justin Green,28,M,Memphis,2022-05-31,2700,7,Premium
+C026,Rachel Adams,32,F,Portland,2022-07-13,1400,3,Regular
+C027,Tyler Baker,38,M,Oklahoma City,2022-09-25,1800,4,Regular
+C028,Megan Nelson,26,F,Las Vegas,2022-11-08,2200,5,Premium
+C029,Kevin Carter,41,M,Louisville,2022-02-14,1000,2,Basic
+C030,Brittany Mitchell,35,F,Baltimore,2022-04-28,1700,4,Regular
