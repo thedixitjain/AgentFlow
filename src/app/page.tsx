@@ -60,6 +60,7 @@ function HomeContent() {
       role: 'assistant',
       content: `I've loaded **${file.name}** successfully.\n\n**Overview:** ${fileInfo}\n\nI'm ready to help you analyze this ${file.type.toUpperCase()} file. You can ask me to:\n- Summarize the content\n- Find specific information\n- Calculate statistics (for data files)\n- Extract key insights\n\nWhat would you like to know?`,
       timestamp: new Date(),
+      agent: 'orchestrator',
     }
     setMessages(prev => [...prev, systemMessage])
     
@@ -83,17 +84,24 @@ function HomeContent() {
     setIsLoading(true)
 
     const streamingId = (Date.now() + 1).toString()
+    const activeDoc = documents.find(d => d.name === activeDocument)
+    
+    // Determine which agent will respond
+    const agentType: 'orchestrator' | 'data-analyst' | 'research-assistant' = 
+      activeDoc 
+        ? (activeDoc.type === 'csv' || activeDoc.type === 'xlsx' ? 'data-analyst' : 'research-assistant')
+        : 'orchestrator'
+    
     setMessages(prev => [...prev, {
       id: streamingId,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
       isStreaming: true,
+      agent: agentType,
     }])
 
     try {
-      const activeDoc = documents.find(d => d.name === activeDocument)
-      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

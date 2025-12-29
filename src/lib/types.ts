@@ -14,6 +14,7 @@ export interface Message {
   content: string
   timestamp: Date
   isStreaming?: boolean
+  agent?: 'orchestrator' | 'data-analyst' | 'research-assistant'
 }
 
 export interface ChatHistory {

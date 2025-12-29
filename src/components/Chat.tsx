@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Send, Loader2, Copy, Check, Upload, Sparkles, FileText, BarChart3, Search, Lightbulb } from 'lucide-react'
+import { Send, Loader2, Copy, Check, Upload, Sparkles, FileText, BarChart3, Search, Lightbulb, Bot, Database, BookOpen } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Message, DocumentFile } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,33 @@ interface ChatProps {
   onSendMessage: (message: string) => void
   activeDocument: string | null
   onFileUpload: (file: DocumentFile) => void
+}
+
+const AGENT_INFO = {
+  'orchestrator': {
+    name: 'Orchestrator',
+    icon: Bot,
+    color: 'blue',
+    bgColor: 'bg-blue-500/10',
+    borderColor: 'border-blue-500/30',
+    textColor: 'text-blue-400',
+  },
+  'data-analyst': {
+    name: 'Data Analyst',
+    icon: Database,
+    color: 'green',
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500/30',
+    textColor: 'text-green-400',
+  },
+  'research-assistant': {
+    name: 'Research Assistant',
+    icon: BookOpen,
+    color: 'purple',
+    bgColor: 'bg-purple-500/10',
+    borderColor: 'border-purple-500/30',
+    textColor: 'text-purple-400',
+  },
 }
 
 const SUGGESTIONS = {
@@ -225,7 +252,11 @@ export function Chat({ messages, isLoading, onSendMessage, activeDocument, onFil
           </div>
         ) : (
           <div className="max-w-3xl mx-auto p-6 space-y-6">
-            {messages.map((message) => (
+            {messages.map((message) => {
+              const agentInfo = message.agent ? AGENT_INFO[message.agent] : null
+              const AgentIcon = agentInfo?.icon
+              
+              return (
               <div
                 key={message.id}
                 className={cn(
@@ -233,14 +264,29 @@ export function Chat({ messages, isLoading, onSendMessage, activeDocument, onFil
                   message.role === 'user' ? 'flex justify-end' : 'flex justify-start'
                 )}
               >
-                <div
-                  className={cn(
-                    'relative group max-w-[85%] rounded-2xl px-5 py-4',
-                    message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-100'
+                <div className="flex flex-col gap-2 max-w-[85%]">
+                  {/* Agent Badge */}
+                  {message.role === 'assistant' && agentInfo && !message.isStreaming && (
+                    <div className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium w-fit',
+                      agentInfo.bgColor,
+                      agentInfo.textColor,
+                      'border',
+                      agentInfo.borderColor
+                    )}>
+                      {AgentIcon && <AgentIcon className="w-3 h-3" />}
+                      {agentInfo.name}
+                    </div>
                   )}
-                >
+                  
+                  <div
+                    className={cn(
+                      'relative group rounded-2xl px-5 py-4',
+                      message.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-zinc-900 border border-zinc-800 text-zinc-100'
+                    )}
+                  >
                   <div className="prose prose-sm max-w-none prose-invert">
                     <ReactMarkdown
                       components={{
@@ -296,9 +342,10 @@ export function Chat({ messages, isLoading, onSendMessage, activeDocument, onFil
                       )}
                     </button>
                   )}
+                  </div>
                 </div>
               </div>
-            ))}
+            )})}
             
             {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
               <div className="flex justify-start animate-fade-in">
