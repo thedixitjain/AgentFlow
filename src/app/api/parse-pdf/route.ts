@@ -9,41 +9,97 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // For now, return a placeholder - PDF parsing requires server-side libraries
-    // In production, you'd use pdf-parse or similar
     const buffer = await file.arrayBuffer()
-    const bytes = new Uint8Array(buffer)
+    const uint8Array = new Uint8Array(buffer)
     
-    // Simple text extraction attempt (works for some PDFs)
+    // Simple PDF text extraction
+    // This extracts readable text from PDF binary
     let text = ''
+    
     try {
       const decoder = new TextDecoder('utf-8', { fatal: false })
-      const rawText = decoder.decode(bytes)
+      const content = decoder.decode(uint8Array)
       
-      // Extract readable text between stream markers
-      const matches = rawText.match(/stream\n([\s\S]*?)\nendstream/g)
-      if (matches) {
-        text = matches
-          .map(m => m.replace(/stream\n|\nendstream/g, ''))
-          .filter(t => /[a-zA-Z]{3,}/.test(t))
-          .join('\n')
-          .replace(/[^\x20-\x7E\n]/g, ' ')
+      // Extract text between stream markers (common in PDFs)
+      const streamMatches = content.match(/stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g)
+      
+      if (streamMatches) {
+        for (const stream of streamMatches) {
+          // Try to extract readable text
+          const cleanStream = stream
+            .replace(/stream[\r\n]+/, '')
+            .replace(/[\r\n]+endstream/, '')
+            .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+          
+          if (cleanStream.length > 20 && /[a-zA-Z]{3,}/.test(cleanStream)) {
+            text += cleanStream + '\n\n'
+          }
+        }
+      }
+      
+      // Also try to extract text from BT/ET blocks (text objects)
+      const textObjects = content.match(/BT[\s\S]*?ET/g)
+      if (textObjects) {
+        for (const obj of textObjects) {
+          // Extract text from Tj and TJ operators
+          const tjMatches = obj.match(/\(([^)]+)\)\s*Tj/g)
+          if (tjMatches) {
+            for (const tj of tjMatches) {
+              const textMatch = tj.match(/\(([^)]+)\)/)
+              if (textMatch) {
+                text += textMatch[1] + ' '
+              }
+            }
+          }
+        }
+      }
+      
+      // Clean up the extracted text
+      text = text
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\\t/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/([.!?])\s+/g, '$1\n\n')
+        .trim()
+      
+      // If still no good text, try raw extraction
+      if (text.length < 100) {
+        const rawText = content
+          .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
           .replace(/\s+/g, ' ')
           .trim()
+        
+        // Find sequences of readable words
+        const words = rawText.match(/[a-zA-Z]{4,}/g)
+        if (words && words.length > 50) {
+          text = words.join(' ')
+        }
       }
     } catch {
-      text = 'PDF text extraction limited. Upload as TXT for full analysis.'
+      // Fallback extraction
+      const decoder = new TextDecoder('utf-8', { fatal: false })
+      text = decoder.decode(uint8Array)
+        .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
     }
 
-    return NextResponse.json({
-      text: text || 'PDF uploaded successfully. Content will be analyzed.',
-      pages: 1,
-    })
+    // Limit text length
+    text = text.slice(0, 100000)
+
+    if (!text || text.length < 50) {
+      text = 'This PDF could not be fully parsed. It may be scanned/image-based, encrypted, or in an unsupported format. For best results with scanned PDFs, please use OCR software to convert to text first.'
+    }
+
+    return NextResponse.json({ text })
   } catch (error) {
-    console.error('PDF parse error:', error)
-    return NextResponse.json(
-      { error: 'Failed to parse PDF' },
-      { status: 500 }
-    )
+    console.error('PDF parsing error:', error)
+    return NextResponse.json({ 
+      text: 'Error parsing PDF file. The file may be corrupted or in an unsupported format.',
+      error: 'Failed to parse PDF' 
+    }, { status: 200 })
   }
 }

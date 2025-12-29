@@ -1,0 +1,41 @@
+Date,Product,Category,Sales,Revenue,Customer_ID,Region,Quantity
+2023-01-15,Laptop Pro,Electronics,1,1200,C001,North,1
+2023-01-16,Wireless Mouse,Electronics,3,75,C002,South,3
+2023-01-17,Office Chair,Furniture,2,400,C003,East,2
+2023-01-18,Laptop Pro,Electronics,1,1200,C004,West,1
+2023-01-19,Desk Lamp,Furniture,1,80,C005,North,1
+2023-01-20,Wireless Keyboard,Electronics,2,120,C006,South,2
+2023-01-21,Standing Desk,Furniture,1,600,C007,East,1
+2023-01-22,Laptop Pro,Electronics,2,2400,C008,West,2
+2023-01-23,Monitor,Electronics,1,300,C009,North,1
+2023-01-24,Office Chair,Furniture,3,1200,C010,South,3
+2023-02-01,Laptop Pro,Electronics,1,1200,C011,East,1
+2023-02-02,Wireless Mouse,Electronics,5,125,C012,West,5
+2023-02-03,Desk Lamp,Furniture,2,160,C013,North,2
+2023-02-04,Standing Desk,Furniture,1,600,C014,South,1
+2023-02-05,Monitor,Electronics,2,600,C015,East,2
+2023-02-06,Wireless Keyboard,Electronics,3,180,C016,West,3
+2023-02-07,Office Chair,Furniture,1,400,C017,North,1
+2023-02-08,Laptop Pro,Electronics,3,3600,C018,South,3
+2023-02-09,Desk Lamp,Furniture,1,80,C019,East,1
+2023-02-10,Monitor,Electronics,1,300,C020,West,1
+2023-03-01,Laptop Pro,Electronics,2,2400,C021,North,2
+2023-03-02,Standing Desk,Furniture,2,1200,C022,South,2
+2023-03-03,Wireless Mouse,Electronics,4,100,C023,East,4
+2023-03-04,Office Chair,Furniture,1,400,C024,West,1
+2023-03-05,Monitor,Electronics,3,900,C025,North,3
+2023-03-06,Wireless Keyboard,Electronics,2,120,C026,South,2
+2023-03-07,Desk Lamp,Furniture,3,240,C027,East,3
+2023-03-08,Laptop Pro,Electronics,1,1200,C028,West,1
+2023-03-09,Standing Desk,Furniture,1,600,C029,North,1
+2023-03-10,Wireless Mouse,Electronics,2,50,C030,South,2
+2023-04-01,Monitor,Electronics,2,600,C031,East,2
+2023-04-02,Office Chair,Furniture,2,800,C032,West,2
+2023-04-03,Laptop Pro,Electronics,4,4800,C033,North,4
+2023-04-04,Desk Lamp,Furniture,1,80,C034,South,1
+2023-04-05,Wireless Keyboard,Electronics,3,180,C035,East,3
+2023-04-06,Standing Desk,Furniture,1,600,C036,West,1
+2023-04-07,Wireless Mouse,Electronics,6,150,C037,North,6
+2023-04-08,Monitor,Electronics,1,300,C038,South,1
+2023-04-09,Office Chair,Furniture,2,800,C039,East,2
+2023-04-10,Laptop Pro,Electronics,2,2400,C040,West,2

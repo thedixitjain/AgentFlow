@@ -1,6 +1,6 @@
 export interface DocumentFile {
   name: string
-  type: 'pdf' | 'csv' | 'xlsx' | 'txt'
+  type: 'pdf' | 'csv' | 'xlsx' | 'txt' | 'docx'
   size: number
   content?: string
   data?: Record<string, unknown>[]
