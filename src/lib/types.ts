@@ -1,6 +1,6 @@
 export interface DocumentFile {
   name: string
-  type: 'pdf' | 'csv' | 'xlsx' | 'txt' | 'docx'
+  type: 'pdf' | 'csv' | 'xlsx' | 'txt'
   size: number
   content?: string
   data?: Record<string, unknown>[]
@@ -14,7 +14,6 @@ export interface Message {
   content: string
   timestamp: Date
   isStreaming?: boolean
-  agent?: 'orchestrator' | 'data-analyst' | 'research-assistant'
 }
 
 export interface ChatHistory {

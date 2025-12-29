@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Plus, FileText, FileSpreadsheet, X, Upload, Home, Zap, Clock, Trash2 } from 'lucide-react'
+import { Plus, FileText, FileSpreadsheet, X, Upload, Home, Zap, BarChart2, Clock } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 import { cn, formatFileSize } from '@/lib/utils'
 
@@ -12,6 +12,7 @@ interface SidebarProps {
   documents: DocumentFile[]
   activeDocument: string | null
   chatHistory: ChatHistory[]
+  currentChatId: string
   onFileUpload: (file: DocumentFile) => void
   onSelectDocument: (name: string) => void
   onRemoveDocument: (name: string) => void
@@ -19,12 +20,15 @@ interface SidebarProps {
   onLoadChat: (chat: ChatHistory) => void
   onDeleteChat: (id: string) => void
   onBackToHome: () => void
+  onToggleInsights: () => void
+  hasInsights: boolean
 }
 
 export function Sidebar({
   documents,
   activeDocument,
   chatHistory,
+  currentChatId,
   onFileUpload,
   onSelectDocument,
   onRemoveDocument,
@@ -32,6 +36,8 @@ export function Sidebar({
   onLoadChat,
   onDeleteChat,
   onBackToHome,
+  onToggleInsights,
+  hasInsights,
 }: SidebarProps) {
   const processFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -64,7 +70,7 @@ export function Sidebar({
         columns: data.length > 0 ? Object.keys(data[0]) : [],
         uploadedAt: new Date(),
       })
-    } else if (ext === 'txt' || ext === 'md') {
+    } else if (ext === 'txt') {
       const text = await file.text()
       onFileUpload({
         name: file.name,
@@ -74,27 +80,11 @@ export function Sidebar({
         uploadedAt: new Date(),
       })
     } else if (ext === 'pdf') {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: formData })
-      const { text } = await res.json()
       onFileUpload({
         name: file.name,
         type: 'pdf',
         size: file.size,
-        content: text || 'Could not extract PDF content',
-        uploadedAt: new Date(),
-      })
-    } else if (ext === 'docx') {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/parse-docx', { method: 'POST', body: formData })
-      const { text } = await res.json()
-      onFileUpload({
-        name: file.name,
-        type: 'docx',
-        size: file.size,
-        content: text || 'Could not extract DOCX content',
+        content: 'PDF document',
         uploadedAt: new Date(),
       })
     }
@@ -105,132 +95,85 @@ export function Sidebar({
     accept: {
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
       'application/pdf': ['.pdf'],
     },
   })
 
   return (
-    <aside className="w-72 bg-[#111111] border-r border-zinc-900 flex flex-col h-full">
+    <aside className="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-900">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <span className="font-semibold text-sm">AgentFlow</span>
-              <span className="text-[10px] text-zinc-600 block">AI Document Intelligence</span>
-            </div>
+      <div className="p-4 border-b border-zinc-900 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
+            <Zap className="w-4 h-4 text-black" />
           </div>
-          <button
-            onClick={onBackToHome}
-            className="p-2 rounded-lg hover:bg-zinc-800 transition-colors group"
-            title="Back to home"
-          >
-            <Home className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
-          </button>
+          <span className="font-semibold text-sm">AgentFlow</span>
         </div>
+        <button
+          onClick={onBackToHome}
+          className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+          title="Back to home"
+        >
+          <Home className="w-4 h-4 text-zinc-400" />
+        </button>
+      </div>
 
+      {/* New Chat */}
+      <div className="p-3 space-y-2">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 transition-all text-sm font-medium"
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-800 hover:bg-zinc-900 transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
           New Chat
         </button>
+        
+        {hasInsights && (
+          <button
+            onClick={onToggleInsights}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm"
+          >
+            <BarChart2 className="w-4 h-4" />
+            View Insights
+          </button>
+        )}
       </div>
 
-      {/* Upload Area */}
-      <div className="p-4 border-b border-zinc-900">
+      {/* Upload */}
+      <div className="px-3 pb-3">
         <div
           {...getRootProps()}
           className={cn(
-            'border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all',
-            isDragActive 
-              ? 'border-blue-500 bg-blue-500/10' 
-              : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50'
+            'border border-dashed rounded-lg p-4 text-center cursor-pointer transition-all',
+            isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-800 hover:border-zinc-700'
           )}
         >
           <input {...getInputProps()} />
-          <Upload className="w-6 h-6 mx-auto mb-2 text-zinc-600" />
-          <p className="text-xs text-zinc-500 font-medium">
-            {isDragActive ? 'Drop files here' : 'Upload files'}
-          </p>
-          <p className="text-[10px] text-zinc-700 mt-1">CSV, Excel, PDF, Word, TXT</p>
+          <Upload className="w-5 h-5 mx-auto mb-2 text-zinc-500" />
+          <p className="text-xs text-zinc-500">{isDragActive ? 'Drop here' : 'Upload files'}</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Documents */}
-        {documents.length > 0 && (
-          <div className="p-4 border-b border-zinc-900">
-            <p className="text-xs text-zinc-600 font-medium mb-3 uppercase tracking-wider">Active Documents</p>
-            <div className="space-y-2">
-              {documents.map((doc) => (
-                <div
-                  key={doc.name}
-                  onClick={() => onSelectDocument(doc.name)}
-                  className={cn(
-                    'group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all',
-                    activeDocument === doc.name 
-                      ? 'bg-blue-500/10 border border-blue-500/30' 
-                      : 'hover:bg-zinc-900 border border-transparent'
-                  )}
-                >
-                  {doc.type === 'csv' || doc.type === 'xlsx' ? (
-                    <FileSpreadsheet className={cn(
-                      "w-4 h-4 flex-shrink-0",
-                      activeDocument === doc.name ? "text-blue-400" : "text-green-400"
-                    )} />
-                  ) : (
-                    <FileText className={cn(
-                      "w-4 h-4 flex-shrink-0",
-                      activeDocument === doc.name ? "text-blue-400" : "text-zinc-400"
-                    )} />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate font-medium">{doc.name}</p>
-                    <p className="text-[10px] text-zinc-600">
-                      {formatFileSize(doc.size)}
-                      {doc.data && ` · ${doc.data.length.toLocaleString()} rows`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemoveDocument(doc.name)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-zinc-800 transition-all"
-                  >
-                    <X className="w-3 h-3 text-zinc-500" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Chat History */}
+      {/* Documents */}
+      <div className="flex-1 overflow-y-auto px-3 space-y-4">
+        {/* Recent Chats */}
         {chatHistory.length > 0 && (
-          <div className="p-4">
-            <p className="text-xs text-zinc-600 font-medium mb-3 uppercase tracking-wider flex items-center gap-2">
+          <div>
+            <p className="text-xs text-zinc-600 mb-2 px-1 flex items-center gap-1">
               <Clock className="w-3 h-3" />
               Recent Chats
             </p>
             <div className="space-y-1">
-              {chatHistory.slice(0, 10).map((chat) => (
+              {chatHistory.slice(0, 5).map((chat) => (
                 <div
                   key={chat.id}
-                  className="group flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-all"
+                  className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-all"
                   onClick={() => onLoadChat(chat)}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{chat.title}</p>
-                    <p className="text-[10px] text-zinc-600">
+                    <p className="text-xs text-zinc-600">
                       {chat.messages.length} messages
                     </p>
                   </div>
@@ -239,22 +182,63 @@ export function Sidebar({
                       e.stopPropagation()
                       onDeleteChat(chat.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-zinc-800 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-800 transition-all"
                   >
-                    <Trash2 className="w-3 h-3 text-zinc-500 hover:text-red-400" />
+                    <X className="w-3 h-3 text-zinc-400" />
                   </button>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        {/* Documents */}
+        <div>
+          <p className="text-xs text-zinc-600 mb-2 px-1">Documents</p>
+          {documents.length === 0 ? (
+            <p className="text-xs text-zinc-700 text-center py-4">No documents</p>
+          ) : (
+            <div className="space-y-1">
+              {documents.map((doc) => (
+                <div
+                  key={doc.name}
+                  onClick={() => onSelectDocument(doc.name)}
+                  className={cn(
+                    'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all',
+                    activeDocument === doc.name ? 'bg-zinc-800' : 'hover:bg-zinc-900'
+                  )}
+                >
+                  {doc.type === 'csv' || doc.type === 'xlsx' ? (
+                    <FileSpreadsheet className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{doc.name}</p>
+                    <p className="text-xs text-zinc-600">
+                      {formatFileSize(doc.size)}
+                      {doc.data && ` · ${doc.data.length} rows`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveDocument(doc.name)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-700 transition-all"
+                  >
+                    <X className="w-3 h-3 text-zinc-400" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer */}
       <div className="p-4 border-t border-zinc-900">
-        <p className="text-[10px] text-zinc-700 text-center">
-          Powered by Groq · Llama 3.1 70B
-        </p>
+        <p className="text-xs text-zinc-700 text-center">Powered by Groq</p>
       </div>
     </aside>
   )

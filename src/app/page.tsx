@@ -1,24 +1,24 @@
 'use client'
 
-import { useState, useCallback, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useCallback, useEffect } from 'react'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
-import { DocumentFile, Message, ChatHistory } from '@/lib/types'
+import { InsightsPanel } from '@/components/InsightsPanel'
+import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types'
 import { storage } from '@/lib/storage'
+import { generateInsights } from '@/lib/insights'
 
-function HomeContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+export default function Home() {
   const [documents, setDocuments] = useState<DocumentFile[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [activeDocument, setActiveDocument] = useState<string | null>(null)
+  const [showLanding, setShowLanding] = useState(true)
   const [currentChatId, setCurrentChatId] = useState<string>('')
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
-
-  const isChat = searchParams.get('chat') === 'true'
+  const [insights, setInsights] = useState<DocumentInsight[]>([])
+  const [showInsights, setShowInsights] = useState(false)
 
   useEffect(() => {
     setChatHistory(storage.getChats())
@@ -26,12 +26,12 @@ function HomeContent() {
 
   useEffect(() => {
     if (messages.length > 0 && currentChatId) {
-      const title = messages[0]?.content.slice(0, 40) || 'New Chat'
+      const title = messages[0]?.content.slice(0, 50) || 'New Chat'
       const chat: ChatHistory = {
         id: currentChatId,
         title,
         messages,
-        createdAt: new Date(parseInt(currentChatId)),
+        createdAt: new Date(currentChatId),
         updatedAt: new Date(),
       }
       storage.saveChat(chat)
@@ -46,28 +46,24 @@ function HomeContent() {
       return [...prev, file]
     })
     setActiveDocument(file.name)
+    setShowLanding(false)
     
-    if (!currentChatId) {
-      setCurrentChatId(Date.now().toString())
-    }
-
-    const fileInfo = file.type === 'csv' || file.type === 'xlsx'
-      ? `${file.data?.length.toLocaleString()} rows across ${file.columns?.length} columns`
-      : `${file.content?.split(/\s+/).length.toLocaleString()} words`
-
+    // Generate insights
+    const docInsights = generateInsights(file)
+    setInsights(docInsights)
+    if (docInsights.length > 0) setShowInsights(true)
+    
     const systemMessage: Message = {
       id: Date.now().toString(),
       role: 'assistant',
-      content: `I've loaded **${file.name}** successfully.\n\n**Overview:** ${fileInfo}\n\nI'm ready to help you analyze this ${file.type.toUpperCase()} file. You can ask me to:\n- Summarize the content\n- Find specific information\n- Calculate statistics (for data files)\n- Extract key insights\n\nWhat would you like to know?`,
+      content: `**${file.name}** loaded successfully.\n\n` +
+        (file.type === 'csv' || file.type === 'xlsx' 
+          ? `**${file.data?.length.toLocaleString()}** rows, **${file.columns?.length}** columns.\n\nAsk me anything about this data.`
+          : `**${file.content?.split(/\s+/).length.toLocaleString()}** words.\n\nAsk me to summarize or find specific information.`),
       timestamp: new Date(),
-      agent: 'orchestrator',
     }
     setMessages(prev => [...prev, systemMessage])
-    
-    if (!isChat) {
-      router.push('/?chat=true')
-    }
-  }, [currentChatId, isChat, router])
+  }, [])
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!currentChatId) {
@@ -84,24 +80,17 @@ function HomeContent() {
     setIsLoading(true)
 
     const streamingId = (Date.now() + 1).toString()
-    const activeDoc = documents.find(d => d.name === activeDocument)
-    
-    // Determine which agent will respond
-    const agentType: 'orchestrator' | 'data-analyst' | 'research-assistant' = 
-      activeDoc 
-        ? (activeDoc.type === 'csv' || activeDoc.type === 'xlsx' ? 'data-analyst' : 'research-assistant')
-        : 'orchestrator'
-    
     setMessages(prev => [...prev, {
       id: streamingId,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
       isStreaming: true,
-      agent: agentType,
     }])
 
     try {
+      const activeDoc = documents.find(d => d.name === activeDocument)
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,11 +100,11 @@ function HomeContent() {
             name: activeDoc.name,
             type: activeDoc.type,
             content: activeDoc.content,
-            data: activeDoc.data?.slice(0, 100),
+            data: activeDoc.data?.slice(0, 50),
             columns: activeDoc.columns,
-            totalRows: activeDoc.data?.length,
           } : null,
-          history: messages.slice(-8).map(m => ({ role: m.role, content: m.content })),
+          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          mode: activeDoc ? 'document' : 'chat',
         }),
       })
 
@@ -135,27 +124,34 @@ function HomeContent() {
             if (line.startsWith('data: ')) {
               const data = line.slice(6)
               if (data === '[DONE]') continue
+              
               try {
                 const parsed = JSON.parse(data)
                 if (parsed.content) {
                   fullContent += parsed.content
                   setMessages(prev => prev.map(m => 
-                    m.id === streamingId ? { ...m, content: fullContent } : m
+                    m.id === streamingId 
+                      ? { ...m, content: fullContent }
+                      : m
                   ))
                 }
-              } catch { /* skip */ }
+              } catch {
+                // Skip invalid JSON
+              }
             }
           }
         }
       }
 
       setMessages(prev => prev.map(m => 
-        m.id === streamingId ? { ...m, isStreaming: false } : m
+        m.id === streamingId 
+          ? { ...m, isStreaming: false }
+          : m
       ))
     } catch {
       setMessages(prev => prev.map(m => 
         m.id === streamingId 
-          ? { ...m, content: 'Sorry, I encountered an error. Please try again.', isStreaming: false }
+          ? { ...m, content: 'Connection error. Please try again.', isStreaming: false }
           : m
       ))
     } finally {
@@ -168,22 +164,24 @@ function HomeContent() {
     if (activeDocument === name) {
       const remaining = documents.filter(d => d.name !== name)
       setActiveDocument(remaining.length > 0 ? remaining[0].name : null)
+      if (remaining.length === 0) {
+        setInsights([])
+        setShowInsights(false)
+      }
     }
   }, [activeDocument, documents])
 
   const handleNewChat = useCallback(() => {
     setMessages([])
-    setDocuments([])
     setActiveDocument(null)
     setCurrentChatId(Date.now().toString())
-    router.push('/?chat=true')
-  }, [router])
+  }, [])
 
   const handleLoadChat = useCallback((chat: ChatHistory) => {
     setMessages(chat.messages)
     setCurrentChatId(chat.id)
-    router.push('/?chat=true')
-  }, [router])
+    setShowLanding(false)
+  }, [])
 
   const handleDeleteChat = useCallback((id: string) => {
     storage.deleteChat(id)
@@ -194,18 +192,22 @@ function HomeContent() {
   }, [currentChatId, handleNewChat])
 
   const handleBackToHome = useCallback(() => {
-    router.push('/')
-  }, [router])
+    setShowLanding(true)
+    setMessages([])
+    setDocuments([])
+    setActiveDocument(null)
+    setCurrentChatId('')
+    setInsights([])
+    setShowInsights(false)
+  }, [])
 
-  const handleStartChat = useCallback(() => {
-    setCurrentChatId(Date.now().toString())
-    router.push('/?chat=true')
-  }, [router])
-
-  if (!isChat) {
+  if (showLanding) {
     return (
       <Landing 
-        onStart={handleStartChat}
+        onStart={() => {
+          setShowLanding(false)
+          setCurrentChatId(Date.now().toString())
+        }} 
         onFileUpload={handleFileUpload}
         recentChats={chatHistory.slice(0, 3)}
         onLoadChat={handleLoadChat}
@@ -214,41 +216,44 @@ function HomeContent() {
   }
 
   return (
-    <div className="h-screen flex bg-[#0a0a0a]">
+    <div className="h-screen flex bg-black">
       <Sidebar
         documents={documents}
         activeDocument={activeDocument}
         chatHistory={chatHistory}
+        currentChatId={currentChatId}
         onFileUpload={handleFileUpload}
-        onSelectDocument={setActiveDocument}
+        onSelectDocument={(name) => {
+          setActiveDocument(name)
+          const doc = documents.find(d => d.name === name)
+          if (doc) {
+            const docInsights = generateInsights(doc)
+            setInsights(docInsights)
+            if (docInsights.length > 0) setShowInsights(true)
+          }
+        }}
         onRemoveDocument={handleRemoveDocument}
         onNewChat={handleNewChat}
         onLoadChat={handleLoadChat}
         onDeleteChat={handleDeleteChat}
         onBackToHome={handleBackToHome}
+        onToggleInsights={() => setShowInsights(!showInsights)}
+        hasInsights={insights.length > 0}
       />
+      
       <Chat
         messages={messages}
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
-        activeDocument={activeDocument}
-        onFileUpload={handleFileUpload}
+        hasDocument={!!activeDocument}
       />
-    </div>
-  )
-}
 
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="h-screen flex items-center justify-center bg-[#0a0a0a]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          <span className="text-white/60">Loading AgentFlow...</span>
-        </div>
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
+      {showInsights && insights.length > 0 && (
+        <InsightsPanel 
+          insights={insights}
+          onClose={() => setShowInsights(false)}
+        />
+      )}
+    </div>
   )
 }
