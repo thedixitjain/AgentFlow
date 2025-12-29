@@ -130,7 +130,7 @@ Be concise, helpful, and use markdown formatting.`
       },
     })
   } catch (error) {
-    console.error('Chat API error:', error)
+    console.error('Chat API error:', error instanceof Error ? error.message : error)
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode('data: {"content":"Error processing request. Please try again."}\n\n'))
