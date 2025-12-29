@@ -1,10 +1,6 @@
 import { NextRequest } from 'next/server'
 import Groq from 'groq-sdk'
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-})
-
 interface ChatRequest {
   message: string
   document: {
@@ -126,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.GROQ_API_KEY) {
       const stream = new ReadableStream({
         start(controller) {
-          controller.enqueue(encoder.encode('data: {"content":"⚠️ **API Configuration Required**\\n\\nThe GROQ_API_KEY environment variable is not set. Please add it to your Vercel environment variables to enable AI responses.\\n\\n[Get your API key at console.groq.com](https://console.groq.com)"}\n\n'))
+          controller.enqueue(encoder.encode('data: {"content":"⚠️ **API Configuration Required**\\n\\nThe GROQ_API_KEY environment variable is not set.\\n\\n**To fix this:**\\n1. Go to [Vercel Dashboard](https://vercel.com)\\n2. Select your AgentFlow project\\n3. Go to Settings → Environment Variables\\n4. Add `GROQ_API_KEY` with your key from [console.groq.com](https://console.groq.com)\\n5. Redeploy the project"}\n\n'))
           controller.enqueue(encoder.encode('data: [DONE]\n\n'))
           controller.close()
         },
@@ -139,6 +135,11 @@ export async function POST(request: NextRequest) {
         },
       })
     }
+
+    // Initialize Groq client with the API key
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    })
 
     const systemPrompt = buildSystemPrompt(document)
 
@@ -188,9 +189,10 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Chat API error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode('data: {"content":"⚠️ **Error**\\n\\nSomething went wrong processing your request. Please try again."}\n\n'))
+        controller.enqueue(encoder.encode(`data: {"content":"⚠️ **Error**\\n\\nSomething went wrong: ${errorMessage.replace(/"/g, '\\"')}\\n\\nPlease check:\\n1. GROQ_API_KEY is set in Vercel environment variables\\n2. The API key is valid\\n3. Try refreshing the page"}\n\n`))
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         controller.close()
       },
