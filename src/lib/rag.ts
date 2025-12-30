@@ -95,7 +95,7 @@ class SimpleRAG {
     // Data chunks
     for (let i = 0; i < data.length; i += rowsPerChunk) {
       const slice = data.slice(i, i + rowsPerChunk)
-      const text = slice.map((row, idx) => {
+      const text = slice.map((row) => {
         return columns.map(col => `${col}:${row[col]}`).join(', ')
       }).join(' | ')
       chunks.push(text)

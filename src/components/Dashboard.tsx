@@ -1,16 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   Activity, 
   Cpu, 
-  Database, 
   DollarSign, 
   Clock, 
-  CheckCircle, 
-  AlertCircle,
+  CheckCircle,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Database
 } from 'lucide-react'
 
 interface AgentState {

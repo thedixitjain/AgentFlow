@@ -114,7 +114,6 @@ Be concise, helpful, and use markdown formatting.`
 
     // Transform the stream to include sources at the end
     const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
     
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
