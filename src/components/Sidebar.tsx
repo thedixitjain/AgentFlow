@@ -112,6 +112,52 @@ export function Sidebar({
           uploadedAt: new Date(),
         })
       }
+    } else if (ext === 'docx' || ext === 'doc') {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      try {
+        const response = await fetch('/api/parse-docx', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          onFileUpload({
+            name: file.name,
+            type: 'docx',
+            size: file.size,
+            content: result.text || 'DOCX content could not be extracted.',
+            uploadedAt: new Date(),
+          })
+        } else {
+          onFileUpload({
+            name: file.name,
+            type: 'docx',
+            size: file.size,
+            content: 'DOCX parsing failed.',
+            uploadedAt: new Date(),
+          })
+        }
+      } catch {
+        onFileUpload({
+          name: file.name,
+          type: 'docx',
+          size: file.size,
+          content: 'DOCX parsing error.',
+          uploadedAt: new Date(),
+        })
+      }
+    } else if (ext === 'pptx' || ext === 'ppt') {
+      const text = await file.text().catch(() => '')
+      onFileUpload({
+        name: file.name,
+        type: 'pptx',
+        size: file.size,
+        content: text || 'PowerPoint uploaded.',
+        uploadedAt: new Date(),
+      })
     }
   }, [onFileUpload])
 
@@ -120,6 +166,10 @@ export function Sidebar({
     accept: {
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'application/msword': ['.doc'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
       'text/plain': ['.txt'],
       'application/pdf': ['.pdf'],
     },
