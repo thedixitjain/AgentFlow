@@ -108,6 +108,18 @@ export default function Home() {
         }),
       })
 
+      // Check for error response
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        setMessages(prev => prev.map(m => 
+          m.id === streamingId 
+            ? { ...m, content: `Error: ${errorData.error || 'Failed to get response'}`, isStreaming: false }
+            : m
+        ))
+        setIsLoading(false)
+        return
+      }
+
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let fullContent = ''
@@ -127,8 +139,10 @@ export default function Home() {
               
               try {
                 const parsed = JSON.parse(data)
-                if (parsed.content) {
-                  fullContent += parsed.content
+                // Handle both formats: direct content or OpenAI-style delta
+                const content = parsed.content || parsed.choices?.[0]?.delta?.content || ''
+                if (content) {
+                  fullContent += content
                   setMessages(prev => prev.map(m => 
                     m.id === streamingId 
                       ? { ...m, content: fullContent }
@@ -216,7 +230,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex bg-black">
+    <div className="h-screen flex bg-[#212121]">
       <Sidebar
         documents={documents}
         activeDocument={activeDocument}
@@ -237,8 +251,6 @@ export default function Home() {
         onLoadChat={handleLoadChat}
         onDeleteChat={handleDeleteChat}
         onBackToHome={handleBackToHome}
-        onToggleInsights={() => setShowInsights(!showInsights)}
-        hasInsights={insights.length > 0}
       />
       
       <Chat
@@ -246,6 +258,7 @@ export default function Home() {
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
         hasDocument={!!activeDocument}
+        documentName={activeDocument || undefined}
       />
 
       {showInsights && insights.length > 0 && (

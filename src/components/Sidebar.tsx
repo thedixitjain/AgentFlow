@@ -4,9 +4,9 @@ import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Plus, FileText, FileSpreadsheet, X, Upload, Home, Zap, BarChart2, Clock } from 'lucide-react'
+import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2 } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
-import { cn, formatFileSize } from '@/lib/utils'
+import { formatFileSize } from '@/lib/utils'
 
 interface SidebarProps {
   documents: DocumentFile[]
@@ -20,15 +20,12 @@ interface SidebarProps {
   onLoadChat: (chat: ChatHistory) => void
   onDeleteChat: (id: string) => void
   onBackToHome: () => void
-  onToggleInsights: () => void
-  hasInsights: boolean
 }
 
 export function Sidebar({
   documents,
   activeDocument,
   chatHistory,
-  currentChatId,
   onFileUpload,
   onSelectDocument,
   onRemoveDocument,
@@ -36,8 +33,6 @@ export function Sidebar({
   onLoadChat,
   onDeleteChat,
   onBackToHome,
-  onToggleInsights,
-  hasInsights,
 }: SidebarProps) {
   const processFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -101,121 +96,72 @@ export function Sidebar({
   })
 
   return (
-    <aside className="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col h-full">
+    <aside className="w-64 bg-[#171717] flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-900 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-            <Zap className="w-4 h-4 text-black" />
-          </div>
-          <span className="font-semibold text-sm">AgentFlow</span>
-        </div>
+      <div className="p-3 flex items-center justify-between">
         <button
           onClick={onBackToHome}
-          className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
-          title="Back to home"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2f2f2f] transition-colors w-full"
         >
-          <Home className="w-4 h-4 text-zinc-400" />
+          <Home className="w-4 h-4" />
+          <span>Home</span>
         </button>
       </div>
 
-      {/* New Chat */}
-      <div className="p-3 space-y-2">
+      {/* New Chat Button */}
+      <div className="px-3 pb-3">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-800 hover:bg-zinc-900 transition-colors text-sm"
+          className="w-full flex items-center gap-2 px-3 py-2.5 bg-[#10a37f] hover:bg-[#0d8a6a] text-white text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
           New Chat
         </button>
-        
-        {hasInsights && (
-          <button
-            onClick={onToggleInsights}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm"
-          >
-            <BarChart2 className="w-4 h-4" />
-            View Insights
-          </button>
-        )}
       </div>
 
-      {/* Upload */}
+      {/* Upload Area */}
       <div className="px-3 pb-3">
         <div
           {...getRootProps()}
-          className={cn(
-            'border border-dashed rounded-lg p-4 text-center cursor-pointer transition-all',
-            isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-800 hover:border-zinc-700'
-          )}
+          className={`border border-dashed p-4 text-center cursor-pointer transition-all ${
+            isDragActive 
+              ? 'border-[#10a37f] bg-[#10a37f]/10' 
+              : 'border-[#424242] hover:border-[#8e8e8e]'
+          }`}
         >
           <input {...getInputProps()} />
-          <Upload className="w-5 h-5 mx-auto mb-2 text-zinc-500" />
-          <p className="text-xs text-zinc-500">{isDragActive ? 'Drop here' : 'Upload files'}</p>
+          <Upload className="w-5 h-5 mx-auto mb-2 text-[#8e8e8e]" />
+          <p className="text-xs text-[#8e8e8e]">
+            {isDragActive ? 'Drop file here' : 'Upload CSV, Excel, PDF, TXT'}
+          </p>
         </div>
       </div>
 
-      {/* Documents */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto px-3 space-y-4">
-        {/* Recent Chats */}
-        {chatHistory.length > 0 && (
-          <div>
-            <p className="text-xs text-zinc-600 mb-2 px-1 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              Recent Chats
-            </p>
-            <div className="space-y-1">
-              {chatHistory.slice(0, 5).map((chat) => (
-                <div
-                  key={chat.id}
-                  className="group flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-all"
-                  onClick={() => onLoadChat(chat)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{chat.title}</p>
-                    <p className="text-xs text-zinc-600">
-                      {chat.messages.length} messages
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteChat(chat.id)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-800 transition-all"
-                  >
-                    <X className="w-3 h-3 text-zinc-400" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Documents */}
-        <div>
-          <p className="text-xs text-zinc-600 mb-2 px-1">Documents</p>
-          {documents.length === 0 ? (
-            <p className="text-xs text-zinc-700 text-center py-4">No documents</p>
-          ) : (
+        {documents.length > 0 && (
+          <div>
+            <p className="text-xs text-[#8e8e8e] mb-2 px-1 uppercase tracking-wide">Documents</p>
             <div className="space-y-1">
               {documents.map((doc) => (
                 <div
                   key={doc.name}
                   onClick={() => onSelectDocument(doc.name)}
-                  className={cn(
-                    'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all',
-                    activeDocument === doc.name ? 'bg-zinc-800' : 'hover:bg-zinc-900'
-                  )}
+                  className={`group flex items-center gap-2 px-3 py-2 cursor-pointer transition-all ${
+                    activeDocument === doc.name 
+                      ? 'bg-[#2f2f2f] text-[#ececec]' 
+                      : 'text-[#b4b4b4] hover:bg-[#2f2f2f] hover:text-[#ececec]'
+                  }`}
                 >
                   {doc.type === 'csv' || doc.type === 'xlsx' ? (
-                    <FileSpreadsheet className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <FileSpreadsheet className="w-4 h-4 text-[#10a37f] flex-shrink-0" />
                   ) : (
-                    <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                    <FileText className="w-4 h-4 text-[#b4b4b4] flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{doc.name}</p>
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-[#8e8e8e]">
                       {formatFileSize(doc.size)}
                       {doc.data && ` · ${doc.data.length} rows`}
                     </p>
@@ -225,20 +171,55 @@ export function Sidebar({
                       e.stopPropagation()
                       onRemoveDocument(doc.name)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-700 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#424242] transition-all"
                   >
-                    <X className="w-3 h-3 text-zinc-400" />
+                    <X className="w-3 h-3 text-[#8e8e8e]" />
                   </button>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Chat History */}
+        {chatHistory.length > 0 && (
+          <div>
+            <p className="text-xs text-[#8e8e8e] mb-2 px-1 uppercase tracking-wide">Recent Chats</p>
+            <div className="space-y-1">
+              {chatHistory.slice(0, 10).map((chat) => (
+                <div
+                  key={chat.id}
+                  className="group flex items-center gap-2 px-3 py-2 text-[#b4b4b4] hover:bg-[#2f2f2f] hover:text-[#ececec] cursor-pointer transition-all"
+                  onClick={() => onLoadChat(chat)}
+                >
+                  <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{chat.title}</p>
+                    <p className="text-xs text-[#8e8e8e]">
+                      {chat.messages.length} messages
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteChat(chat.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#424242] transition-all"
+                  >
+                    <Trash2 className="w-3 h-3 text-[#8e8e8e]" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-zinc-900">
-        <p className="text-xs text-zinc-700 text-center">Powered by Groq</p>
+      <div className="p-4 border-t border-[#2f2f2f]">
+        <p className="text-xs text-[#8e8e8e] text-center">
+          Powered by Groq
+        </p>
       </div>
     </aside>
   )

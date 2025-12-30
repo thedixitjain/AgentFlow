@@ -4,10 +4,9 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Upload, ArrowRight, FileText, BarChart2, Zap, Database } from 'lucide-react'
+import { Upload, ArrowRight, FileText, BarChart2, Zap, Database, Sparkles } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 
-// Sample sales data embedded for demo
 const SAMPLE_SALES_CSV = `Date,Product,Category,Sales,Revenue,Customer_ID,Region,Quantity
 2023-01-15,Laptop Pro,Electronics,1,1200,C001,North,1
 2023-01-16,Wireless Mouse,Electronics,3,75,C002,South,3
@@ -149,56 +148,56 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
   })
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#212121] text-[#ececec]">
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            <Zap className="w-4 h-4 text-black" />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#10a37f] flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-semibold">AgentFlow</span>
+          <span className="font-semibold text-lg">AgentFlow</span>
         </div>
         <a
           href="https://github.com/thedixitjain/AgentFlow"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-zinc-400 hover:text-white transition-colors text-sm"
+          className="text-[#b4b4b4] hover:text-[#ececec] transition-colors text-sm"
         >
           GitHub
         </a>
       </header>
 
       {/* Hero */}
-      <main className="px-6 pt-24 pb-20 max-w-4xl mx-auto text-center">
-        <p className="text-zinc-500 text-sm mb-4">AI-Powered Document Intelligence</p>
+      <main className="px-6 pt-20 pb-16 max-w-4xl mx-auto text-center">
+        <p className="text-[#10a37f] text-sm font-medium mb-4 uppercase tracking-wide">
+          AI-Powered Document Intelligence
+        </p>
         
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-          Understand your documents
+        <h1 className="text-4xl md:text-5xl font-semibold mb-6 leading-tight">
+          Analyze documents with
           <br />
-          <span className="text-zinc-500">in seconds</span>
+          natural language
         </h1>
         
-        <p className="text-zinc-400 text-lg mb-12 max-w-xl mx-auto">
+        <p className="text-[#b4b4b4] text-lg mb-12 max-w-xl mx-auto leading-relaxed">
           Upload CSV, Excel, PDF, or text files. Ask questions in plain English. 
           Get instant insights powered by AI.
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <div
             {...getRootProps()}
-            className={`
-              px-8 py-4 rounded-xl font-medium cursor-pointer transition-all
-              ${isDragActive 
-                ? 'bg-blue-600 scale-105' 
-                : 'bg-white text-black hover:bg-zinc-200'
-              }
-            `}
+            className={`px-6 py-3 font-medium cursor-pointer transition-all ${
+              isDragActive 
+                ? 'bg-[#10a37f] text-white' 
+                : 'bg-[#ececec] text-[#212121] hover:bg-white'
+            }`}
           >
             <input {...getInputProps()} />
             <div className="flex items-center gap-2">
               {isUploading ? (
-                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-[#212121]/30 border-t-[#212121] animate-spin" />
               ) : (
                 <Upload className="w-5 h-5" />
               )}
@@ -209,10 +208,10 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
           <button
             onClick={loadSampleData}
             disabled={isLoadingSample}
-            className="flex items-center gap-2 px-8 py-4 rounded-xl font-medium bg-blue-600 hover:bg-blue-500 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors disabled:opacity-50"
           >
             {isLoadingSample ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white animate-spin" />
             ) : (
               <Database className="w-5 h-5" />
             )}
@@ -221,7 +220,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
           <button
             onClick={onStart}
-            className="flex items-center gap-2 px-8 py-4 rounded-xl font-medium border border-zinc-800 hover:border-zinc-600 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 font-medium border border-[#424242] hover:border-[#8e8e8e] hover:bg-[#2f2f2f] transition-colors"
           >
             <span>Start Chat</span>
             <ArrowRight className="w-4 h-4" />
@@ -229,45 +228,45 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
         </div>
 
         {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 text-left">
-          <div className="p-6 rounded-xl border border-zinc-800">
-            <FileText className="w-8 h-8 mb-4 text-zinc-400" />
-            <h3 className="font-semibold mb-2">Document Analysis</h3>
-            <p className="text-sm text-zinc-500">
+        <div className="grid md:grid-cols-3 gap-6 text-left mb-16">
+          <div className="p-6 bg-[#2f2f2f] border border-[#424242]">
+            <FileText className="w-8 h-8 mb-4 text-[#10a37f]" />
+            <h3 className="font-semibold mb-2 text-[#ececec]">Document Analysis</h3>
+            <p className="text-sm text-[#b4b4b4] leading-relaxed">
               Upload any document and ask questions. Get summaries, find specific info, extract insights.
             </p>
           </div>
           
-          <div className="p-6 rounded-xl border border-zinc-800">
-            <BarChart2 className="w-8 h-8 mb-4 text-zinc-400" />
-            <h3 className="font-semibold mb-2">Data Intelligence</h3>
-            <p className="text-sm text-zinc-500">
+          <div className="p-6 bg-[#2f2f2f] border border-[#424242]">
+            <BarChart2 className="w-8 h-8 mb-4 text-[#10a37f]" />
+            <h3 className="font-semibold mb-2 text-[#ececec]">Data Intelligence</h3>
+            <p className="text-sm text-[#b4b4b4] leading-relaxed">
               Analyze CSV and Excel files. Calculate totals, find trends, identify patterns automatically.
             </p>
           </div>
           
-          <div className="p-6 rounded-xl border border-zinc-800">
-            <Zap className="w-8 h-8 mb-4 text-zinc-400" />
-            <h3 className="font-semibold mb-2">Instant Responses</h3>
-            <p className="text-sm text-zinc-500">
-              Powered by Llama 3.1 70B via Groq. Get answers in under a second.
+          <div className="p-6 bg-[#2f2f2f] border border-[#424242]">
+            <Zap className="w-8 h-8 mb-4 text-[#10a37f]" />
+            <h3 className="font-semibold mb-2 text-[#ececec]">Instant Responses</h3>
+            <p className="text-sm text-[#b4b4b4] leading-relaxed">
+              Powered by Llama 3.3 70B via Groq. Get answers in under a second.
             </p>
           </div>
         </div>
 
         {/* Recent Chats */}
         {recentChats.length > 0 && (
-          <div className="mt-12">
-            <h3 className="text-sm text-zinc-500 mb-4">Continue where you left off</h3>
-            <div className="grid gap-3">
+          <div>
+            <h3 className="text-sm text-[#8e8e8e] mb-4 uppercase tracking-wide">Continue where you left off</h3>
+            <div className="grid gap-3 max-w-lg mx-auto">
               {recentChats.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => onLoadChat(chat)}
-                  className="p-4 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 transition-all text-left"
+                  className="p-4 bg-[#2f2f2f] border border-[#424242] hover:border-[#8e8e8e] hover:bg-[#3a3a3a] transition-all text-left"
                 >
-                  <p className="text-sm font-medium truncate">{chat.title}</p>
-                  <p className="text-xs text-zinc-600 mt-1">
+                  <p className="text-sm font-medium truncate text-[#ececec]">{chat.title}</p>
+                  <p className="text-xs text-[#8e8e8e] mt-1">
                     {chat.messages.length} messages · {new Date(chat.updatedAt).toLocaleDateString()}
                   </p>
                 </button>
@@ -278,12 +277,12 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-8 border-t border-zinc-900">
-        <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-zinc-600">
+      <footer className="px-6 py-8 border-t border-[#2f2f2f]">
+        <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-[#8e8e8e]">
           <span>Built by Dixit Jain</span>
-          <div className="flex gap-4">
-            <a href="https://github.com/thedixitjain" className="hover:text-white transition-colors">GitHub</a>
-            <a href="https://linkedin.com/in/thedixitjain" className="hover:text-white transition-colors">LinkedIn</a>
+          <div className="flex gap-6">
+            <a href="https://github.com/thedixitjain" className="hover:text-[#ececec] transition-colors">GitHub</a>
+            <a href="https://linkedin.com/in/thedixitjain" className="hover:text-[#ececec] transition-colors">LinkedIn</a>
           </div>
         </div>
       </footer>

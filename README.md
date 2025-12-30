@@ -9,14 +9,14 @@ AI-powered document intelligence. Upload files, ask questions, get instant answe
 - **Document Analysis** — CSV, Excel, PDF, TXT support
 - **Natural Language Queries** — Ask questions in plain English
 - **AI Chat** — General assistant when no document is loaded
-- **Instant Responses** — Powered by Llama 3.1 70B via Groq
+- **Instant Responses** — Powered by Llama 3.3 70B via Groq
 
 ## Tech Stack
 
 - Next.js 14
 - TypeScript
 - Tailwind CSS
-- Groq API (Llama 3.1 70B)
+- Groq API (Llama 3.3 70B)
 
 ## Setup
 
