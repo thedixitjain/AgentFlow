@@ -4,6 +4,8 @@ import { IngestAgent } from './ingest.js';
 import { QuestionAgent } from './question.js';
 import { VerifierAgent } from './verifier.js';
 import { SummarizerAgent } from './summarizer.js';
+import { RAGAgent } from './rag.js';
+import { ragService } from '../services/rag.js';
 import { llmService } from '../services/llm.js';
 import { logger } from '../utils/logger.js';
 import { taskCounter, taskDuration } from '../utils/metrics.js';
@@ -14,6 +16,7 @@ interface AgentPool {
   question: QuestionAgent[];
   verifier: VerifierAgent[];
   summarizer: SummarizerAgent[];
+  rag: RAGAgent[];
 }
 
 export class OrchestratorAgent extends BaseAgent {
@@ -30,6 +33,7 @@ export class OrchestratorAgent extends BaseAgent {
       question: [new QuestionAgent(), new QuestionAgent()],
       verifier: [new VerifierAgent()],
       summarizer: [new SummarizerAgent()],
+      rag: [new RAGAgent()],
     };
 
     logger.info('Orchestrator initialized with agent pool', {
@@ -37,6 +41,7 @@ export class OrchestratorAgent extends BaseAgent {
       question: this.agents.question.length,
       verifier: this.agents.verifier.length,
       summarizer: this.agents.summarizer.length,
+      rag: this.agents.rag.length,
     });
   }
 
@@ -55,11 +60,31 @@ export class OrchestratorAgent extends BaseAgent {
     agentUsed: string;
     tokensUsed: number;
     confidence?: number;
+    sources?: Array<{ content: string; score: number }>;
   }> {
+    // If document provided and not indexed, index it first
+    if (document && !document.metadata?.indexed) {
+      await ragService.indexDocument(document);
+      document.metadata = { ...document.metadata, indexed: true };
+    }
+
     // Classify the intent
     const intent = await this.classifyIntent(message, document);
     
     logger.info('Message classified', { intent, hasDocument: !!document });
+
+    // Use RAG for document questions
+    if (document && (intent.taskType === 'question' || intent.taskType === 'analyze')) {
+      const ragResponse = await ragService.query(message, document.id, 5);
+      
+      return {
+        response: ragResponse.answer,
+        agentUsed: 'rag',
+        tokensUsed: ragResponse.tokensUsed,
+        confidence: ragResponse.sources.length > 0 ? ragResponse.sources[0].score : 0.5,
+        sources: ragResponse.sources,
+      };
+    }
 
     // Create and execute appropriate task
     const task: Task = {

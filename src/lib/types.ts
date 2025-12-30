@@ -14,6 +14,12 @@ export interface Message {
   content: string
   timestamp: Date
   isStreaming?: boolean
+  agentType?: string
+  sources?: Array<{
+    content: string
+    score: number
+    chunkIndex?: number
+  }>
 }
 
 export interface ChatHistory {

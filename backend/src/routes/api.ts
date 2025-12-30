@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx';
 import { orchestrator } from '../agents/orchestrator.js';
 import { sessionService } from '../services/session.js';
 import { llmService } from '../services/llm.js';
+import { ragService } from '../services/rag.js';
+import { vectorStore } from '../services/vectorStore.js';
 import { logger } from '../utils/logger.js';
 import { register } from '../utils/metrics.js';
 import type { Document, Message, DocumentType } from '../types/index.js';
@@ -217,6 +219,7 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
       message: assistantMessage,
       agentUsed: result.agentUsed,
       confidence: result.confidence,
+      sources: result.sources,
     });
   } catch (error) {
     logger.error('Chat failed', { error });
@@ -290,6 +293,7 @@ router.get('/stats', (req: Request, res: Response) => {
   const agentStates = orchestrator.getAllAgentStates();
   const queue = orchestrator.getQueueStatus();
   const budget = llmService.getBudgetStatus();
+  const ragStats = ragService.getStats();
 
   res.json({
     sessions: sessionService.getSessionCount(),
@@ -300,9 +304,79 @@ router.get('/stats', (req: Request, res: Response) => {
     },
     tasks: queue,
     budget,
+    rag: ragStats,
     uptime: process.uptime(),
     memory: process.memoryUsage(),
   });
+});
+
+// RAG Endpoints
+router.post('/rag/index', async (req: Request, res: Response) => {
+  try {
+    const { sessionId, documentId } = req.body;
+    
+    const document = sessionService.getDocument(sessionId, documentId);
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const chunkCount = await ragService.indexDocument(document);
+    
+    res.json({
+      success: true,
+      documentId: document.id,
+      chunksCreated: chunkCount,
+    });
+  } catch (error) {
+    logger.error('RAG indexing failed', { error });
+    res.status(500).json({ error: 'Failed to index document' });
+  }
+});
+
+router.post('/rag/query', async (req: Request, res: Response) => {
+  try {
+    const { question, documentId, topK = 5 } = req.body;
+    
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+
+    const response = await ragService.query(question, documentId, topK);
+    
+    res.json(response);
+  } catch (error) {
+    logger.error('RAG query failed', { error });
+    res.status(500).json({ error: 'Failed to process RAG query' });
+  }
+});
+
+router.post('/rag/search', async (req: Request, res: Response) => {
+  try {
+    const { query, documentId, topK = 10 } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    const results = await vectorStore.search(query, topK, documentId);
+    
+    res.json({
+      results: results.map(r => ({
+        content: r.document.content,
+        score: r.score,
+        documentId: r.document.documentId,
+        chunkIndex: r.document.chunkIndex,
+      })),
+    });
+  } catch (error) {
+    logger.error('Semantic search failed', { error });
+    res.status(500).json({ error: 'Failed to perform semantic search' });
+  }
+});
+
+router.get('/rag/stats', (req: Request, res: Response) => {
+  const stats = ragService.getStats();
+  res.json(stats);
 });
 
 export default router;

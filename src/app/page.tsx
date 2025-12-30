@@ -127,6 +127,7 @@ export default function Home() {
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let fullContent = ''
+      let sources: Array<{ content: string; score: number }> = []
 
       if (reader) {
         while (true) {
@@ -143,6 +144,18 @@ export default function Home() {
               
               try {
                 const parsed = JSON.parse(data)
+                
+                // Check for sources (RAG)
+                if (parsed.sources) {
+                  sources = parsed.sources
+                  setMessages(prev => prev.map(m => 
+                    m.id === streamingId 
+                      ? { ...m, sources }
+                      : m
+                  ))
+                  continue
+                }
+                
                 // Handle both formats: direct content or OpenAI-style delta
                 const content = parsed.content || parsed.choices?.[0]?.delta?.content || ''
                 if (content) {

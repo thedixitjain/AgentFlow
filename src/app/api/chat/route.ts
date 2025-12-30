@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rag } from '@/lib/rag'
 
 interface ChatRequest {
   message: string
   document: {
+    id?: string
     name: string
     type: string
     content?: string
@@ -30,38 +32,41 @@ export async function POST(request: NextRequest) {
     }
 
     let systemPrompt = ''
+    let ragSources: Array<{ content: string; score: number }> = []
     
     if (mode === 'document' && document) {
-      let documentContext = ''
-      if (document.type === 'csv' || document.type === 'xlsx') {
-        const dataPreview = document.data?.slice(0, 30) || []
-        documentContext = `
-DOCUMENT: ${document.name}
-TYPE: Spreadsheet (${document.type.toUpperCase()})
-COLUMNS: ${document.columns?.join(', ')}
-TOTAL ROWS: ${document.data?.length || 0}
-
-DATA SAMPLE:
-${JSON.stringify(dataPreview, null, 2)}
-`
-      } else {
-        documentContext = `
-DOCUMENT: ${document.name}
-TYPE: ${document.type.toUpperCase()}
-
-CONTENT:
-${document.content?.slice(0, 8000) || 'Content not available'}
-`
+      const docId = document.id || document.name
+      
+      // Index document if not already indexed
+      if (!rag.isIndexed(docId)) {
+        rag.index(
+          docId,
+          document.content || null,
+          document.data || null,
+          document.columns || null
+        )
       }
+      
+      // RAG search
+      ragSources = rag.search(message, docId, 5)
+      const context = rag.buildContext(ragSources)
 
-      systemPrompt = `You are AgentFlow, an AI document analyst. Analyze the document and provide accurate, helpful answers.
+      systemPrompt = `You are AgentFlow, an AI document analyst using RAG (Retrieval-Augmented Generation).
 
-${documentContext}
+RETRIEVED CONTEXT:
+${context}
 
-Guidelines:
-- Answer based on the actual document data
+DOCUMENT INFO:
+Name: ${document.name}
+Type: ${document.type.toUpperCase()}
+${document.data ? `Rows: ${document.data.length}` : ''}
+${document.columns ? `Columns: ${document.columns.join(', ')}` : ''}
+
+INSTRUCTIONS:
+- Answer based ONLY on the retrieved context above
+- Cite sources using [Source N] format when referencing specific information
+- If the context doesn't contain the answer, say so clearly
 - Be precise with numbers and calculations
-- Keep responses clear and concise
 - Use markdown formatting for readability`
     } else {
       systemPrompt = `You are AgentFlow, a helpful AI assistant. You can help with:
@@ -82,7 +87,7 @@ Be concise, helpful, and use markdown formatting.`
       { role: 'user', content: message },
     ]
 
-    // Call Groq API directly with fetch
+    // Call Groq API
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -92,7 +97,7 @@ Be concise, helpful, and use markdown formatting.`
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages,
-        temperature: 0.4,
+        temperature: 0.3,
         max_tokens: 2048,
         stream: true,
       }),
@@ -107,8 +112,31 @@ Be concise, helpful, and use markdown formatting.`
       )
     }
 
-    // Return the stream directly
-    return new Response(response.body, {
+    // Transform the stream to include sources at the end
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+    
+    const transformStream = new TransformStream({
+      async transform(chunk, controller) {
+        controller.enqueue(chunk)
+      },
+      async flush(controller) {
+        // Send sources after the main response
+        if (ragSources.length > 0) {
+          const sourcesData = JSON.stringify({ 
+            sources: ragSources.map(s => ({
+              content: s.content.slice(0, 200) + (s.content.length > 200 ? '...' : ''),
+              score: s.score,
+            }))
+          })
+          controller.enqueue(encoder.encode(`data: ${sourcesData}\n\n`))
+        }
+      }
+    })
+
+    const stream = response.body?.pipeThrough(transformStream)
+
+    return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

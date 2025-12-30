@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Copy, Check, Sparkles, User, Paperclip } from 'lucide-react'
+import { Send, Copy, Check, Sparkles, User, Paperclip, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Message } from '@/lib/types'
 
@@ -16,6 +16,7 @@ interface ChatProps {
 export function Chat({ messages, isLoading, onSendMessage, hasDocument, documentName }: ChatProps) {
   const [input, setInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -51,6 +52,18 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
     await navigator.clipboard.writeText(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const toggleSources = (messageId: string) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev)
+      if (next.has(messageId)) {
+        next.delete(messageId)
+      } else {
+        next.add(messageId)
+      }
+      return next
+    })
   }
 
   return (
@@ -159,22 +172,64 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
 
                     {/* Copy button for assistant messages */}
                     {message.role === 'assistant' && message.content && !message.isStreaming && (
-                      <button
-                        onClick={() => copyToClipboard(message.content, message.id)}
-                        className="mt-3 flex items-center gap-1.5 text-xs text-[#8e8e8e] hover:text-[#ececec] transition-colors"
-                      >
-                        {copiedId === message.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            Copy
-                          </>
+                      <div className="mt-3 flex items-center gap-4">
+                        <button
+                          onClick={() => copyToClipboard(message.content, message.id)}
+                          className="flex items-center gap-1.5 text-xs text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+                        >
+                          {copiedId === message.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              Copy
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* RAG Sources */}
+                        {message.sources && message.sources.length > 0 && (
+                          <button
+                            onClick={() => toggleSources(message.id)}
+                            className="flex items-center gap-1.5 text-xs text-[#10a37f] hover:text-[#0d8a6a] transition-colors"
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            {message.sources.length} sources
+                            {expandedSources.has(message.id) ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </button>
                         )}
-                      </button>
+                      </div>
+                    )}
+
+                    {/* Expanded Sources */}
+                    {message.sources && expandedSources.has(message.id) && (
+                      <div className="mt-3 space-y-2">
+                        {message.sources.map((source, idx) => (
+                          <div 
+                            key={idx}
+                            className="p-3 bg-[#1a1a1a] border-l-2 border-[#10a37f]"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-[#10a37f]">
+                                Source {idx + 1}
+                              </span>
+                              <span className="text-xs text-[#8e8e8e]">
+                                {(source.score * 100).toFixed(0)}% match
+                              </span>
+                            </div>
+                            <p className="text-xs text-[#b4b4b4] line-clamp-3">
+                              {source.content}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
