@@ -51,31 +51,28 @@ export async function POST(request: NextRequest) {
       ragSources = rag.search(message, docId, 5)
       const context = rag.buildContext(ragSources)
 
-      systemPrompt = `You are AgentFlow, an AI document analyst using RAG (Retrieval-Augmented Generation).
+      systemPrompt = `You are AgentFlow, a senior AI analyst. Be concise, direct, and professional.
 
-RETRIEVED CONTEXT:
+CONTEXT FROM DOCUMENT:
 ${context}
 
-DOCUMENT INFO:
-Name: ${document.name}
-Type: ${document.type.toUpperCase()}
-${document.data ? `Rows: ${document.data.length}` : ''}
-${document.columns ? `Columns: ${document.columns.join(', ')}` : ''}
-
-INSTRUCTIONS:
-- Answer based ONLY on the retrieved context above
-- Cite sources using [Source N] format when referencing specific information
-- If the context doesn't contain the answer, say so clearly
-- Be precise with numbers and calculations
-- Use markdown formatting for readability`
+RULES:
+1. Answer ONLY what was asked - nothing more
+2. Be succinct - use bullet points for lists, short sentences
+3. Extract exact information from context - don't add generic filler
+4. If asked for specific items (e.g., "technical skills"), return ONLY those items
+5. No introductions, no conclusions, no "here's what I found" - just the answer
+6. Use markdown for structure when helpful
+7. If info isn't in context, say "Not found in document" - don't guess`
     } else {
-      systemPrompt = `You are AgentFlow, a helpful AI assistant. You can help with:
-- Coding and technical questions
-- Data analysis concepts
-- General knowledge
-- Writing and explanations
+      systemPrompt = `You are AgentFlow, a senior AI assistant. Be concise and direct.
 
-Be concise, helpful, and use markdown formatting.`
+RULES:
+1. Answer exactly what was asked - no filler, no fluff
+2. Short sentences, bullet points for lists
+3. No unnecessary introductions or conclusions
+4. Professional tone, human-like responses
+5. If you don't know, say so briefly`
     }
 
     const messages = [
@@ -97,8 +94,8 @@ Be concise, helpful, and use markdown formatting.`
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages,
-        temperature: 0.3,
-        max_tokens: 2048,
+        temperature: 0.2,
+        max_tokens: 1024,
         stream: true,
       }),
     })
