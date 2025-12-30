@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
 import { InsightsPanel } from '@/components/InsightsPanel'
+import { Dashboard } from '@/components/Dashboard'
 import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types'
 import { storage } from '@/lib/storage'
 import { generateInsights } from '@/lib/insights'
@@ -19,6 +20,9 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
   const [insights, setInsights] = useState<DocumentInsight[]>([])
   const [showInsights, setShowInsights] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
+  const [agentStates, setAgentStates] = useState<any[]>([])
+  const [systemStats, setSystemStats] = useState<any>(null)
 
   useEffect(() => {
     setChatHistory(storage.getChats())
