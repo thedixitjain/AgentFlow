@@ -75,13 +75,43 @@ export function Sidebar({
         uploadedAt: new Date(),
       })
     } else if (ext === 'pdf') {
-      onFileUpload({
-        name: file.name,
-        type: 'pdf',
-        size: file.size,
-        content: 'PDF document',
-        uploadedAt: new Date(),
-      })
+      // Parse PDF using API
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      try {
+        const response = await fetch('/api/parse-pdf', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          onFileUpload({
+            name: file.name,
+            type: 'pdf',
+            size: file.size,
+            content: result.text || 'PDF content could not be extracted.',
+            uploadedAt: new Date(),
+          })
+        } else {
+          onFileUpload({
+            name: file.name,
+            type: 'pdf',
+            size: file.size,
+            content: 'PDF parsing failed.',
+            uploadedAt: new Date(),
+          })
+        }
+      } catch {
+        onFileUpload({
+          name: file.name,
+          type: 'pdf',
+          size: file.size,
+          content: 'PDF parsing error.',
+          uploadedAt: new Date(),
+        })
+      }
     }
   }, [onFileUpload])
 
