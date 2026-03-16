@@ -84,6 +84,25 @@ class SimpleRAG {
     return chunks
   }
 
+  // Format Excel date serial to readable string (for timesheets, etc.)
+  private formatCellValue(val: unknown): string {
+    if (val === null || val === undefined) return ''
+    if (typeof val === 'number') {
+      // Excel dates are typically 40000-50000 range (2009-2036)
+      if (val > 10000 && val < 100000 && Number.isFinite(val)) {
+        const date = new Date((val - 25569) * 86400 * 1000)
+        if (!isNaN(date.getTime())) {
+          const iso = date.toISOString().split('T')[0]
+          const short = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          const long = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+          return `${iso} ${short} ${long}`
+        }
+      }
+      return String(val)
+    }
+    return String(val)
+  }
+
   // Chunk tabular data
   chunkTabularData(data: Record<string, unknown>[], columns: string[]): string[] {
     const chunks: string[] = []
@@ -92,11 +111,11 @@ class SimpleRAG {
     // Schema chunk
     chunks.push(`Dataset: ${columns.join(', ')} | Total: ${data.length} rows`)
     
-    // Data chunks
+    // Data chunks - format dates for better searchability
     for (let i = 0; i < data.length; i += rowsPerChunk) {
       const slice = data.slice(i, i + rowsPerChunk)
       const text = slice.map((row) => {
-        return columns.map(col => `${col}:${row[col]}`).join(', ')
+        return columns.map(col => `${col}: ${this.formatCellValue(row[col])}`).join(', ')
       }).join(' | ')
       chunks.push(text)
     }

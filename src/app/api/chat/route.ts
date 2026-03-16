@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { rag } from '@/lib/rag'
 
 interface ChatRequest {
@@ -15,122 +16,119 @@ interface ChatRequest {
   mode: 'document' | 'chat'
 }
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json()
     const { message, document, history, mode } = body
 
-    const apiKey = process.env.GROQ_API_KEY
+    const apiKey = process.env.GEMINI_API_KEY
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'API key not configured' },
+        { error: 'Gemini API key not configured' },
         { status: 500 }
       )
     }
 
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+
     let systemPrompt = ''
     let ragSources: Array<{ content: string; score: number }> = []
-    
+
+    let contextBlock = ''
     if (mode === 'document' && document) {
       const docId = document.id || document.name
-      
-      // Index document if not already indexed
-      if (!rag.isIndexed(docId)) {
-        rag.index(
-          docId,
-          document.content || null,
-          document.data || null,
-          document.columns || null
-        )
-      }
-      
-      // RAG search
-      ragSources = rag.search(message, docId, 5)
-      const context = rag.buildContext(ragSources)
 
-      systemPrompt = `You are AgentFlow, a senior AI analyst. Be concise, direct, and professional.
-
-CONTEXT FROM DOCUMENT:
-${context}
-
-RULES:
-1. Answer ONLY what was asked - nothing more
-2. Be succinct - use bullet points for lists, short sentences
-3. Extract exact information from context - don't add generic filler
-4. If asked for specific items (e.g., "technical skills"), return ONLY those items
-5. No introductions, no conclusions, no "here's what I found" - just the answer
-6. Use markdown for structure when helpful
-7. If info isn't in context, say "Not found in document" - don't guess`
-    } else {
-      systemPrompt = `You are AgentFlow, a senior AI assistant. Be concise and direct.
-
-RULES:
-1. Answer exactly what was asked - no filler, no fluff
-2. Short sentences, bullet points for lists
-3. No unnecessary introductions or conclusions
-4. Professional tone, human-like responses
-5. If you don't know, say so briefly`
-    }
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...history.slice(-6).map(m => ({
-        role: m.role,
-        content: m.content,
-      })),
-      { role: 'user', content: message },
-    ]
-
-    // Call Groq API
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages,
-        temperature: 0.2,
-        max_tokens: 1024,
-        stream: true,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Groq API error:', response.status, errorText)
-      return NextResponse.json(
-        { error: `API error: ${response.status}` },
-        { status: response.status }
+      rag.index(
+        docId,
+        document.content || null,
+        document.data || null,
+        document.columns || null
       )
+
+      const rowCount = document.data?.length ?? 0
+      const topK = rowCount > 0 && rowCount <= 100 ? 20 : 8
+      ragSources = rag.search(message, docId, topK)
+      let context = rag.buildContext(ragSources)
+
+      if (document.data && document.columns && document.data.length <= 100 && ragSources.length > 0 && ragSources[0].score < 0.3) {
+        const formatVal = (v: unknown): string => {
+          if (v === null || v === undefined) return ''
+          if (typeof v === 'number' && v > 10000 && v < 100000) {
+            const d = new Date((v - 25569) * 86400 * 1000)
+            if (!isNaN(d.getTime())) return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          }
+          return String(v)
+        }
+        const fullText = document.data.slice(0, 100).map((row, i) =>
+          `Row ${i + 1}: ${document!.columns!.map(c => `${c}: ${formatVal(row[c])}`).join(', ')}`
+        ).join('\n')
+        context = `FULL DATA (${document.data.length} rows):\n${fullText}\n\n---\nRAG matches:\n${context}`
+      }
+      contextBlock = `\n\nCONTEXT FROM DOCUMENT:\n${context}\n\n`
     }
 
-    // Transform the stream to include sources at the end
-    const encoder = new TextEncoder()
-    
-    const transformStream = new TransformStream({
-      async transform(chunk, controller) {
-        controller.enqueue(chunk)
-      },
-      async flush(controller) {
-        // Send sources after the main response
-        if (ragSources.length > 0) {
-          const sourcesData = JSON.stringify({ 
-            sources: ragSources.map(s => ({
-              content: s.content.slice(0, 200) + (s.content.length > 200 ? '...' : ''),
-              score: s.score,
-            }))
-          })
-          controller.enqueue(encoder.encode(`data: ${sourcesData}\n\n`))
-        }
-      }
-    })
+    systemPrompt = `You are AgentFlow, a senior AI analyst. Be concise, direct, and professional. Answer ONLY what was asked. Be succinct. Extract exact information from context. If info isn't in context, say "Not found in document".`
 
-    const stream = response.body?.pipeThrough(transformStream)
+    const chatHistory = history.slice(-6).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }))
+
+    const userMessage = contextBlock ? `${contextBlock}User question: ${message}` : message
+
+    const encoder = new TextEncoder()
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const runWithModel = async (modelIndex: number): Promise<boolean> => {
+          const model = genAI.getGenerativeModel({ model: modelNames[modelIndex] })
+          const chat = model.startChat({
+            history: chatHistory,
+            generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+            systemInstruction: systemPrompt,
+          })
+          try {
+            const result = await chat.sendMessageStream(userMessage)
+            for await (const chunk of result.stream) {
+              const text = chunk.text()
+              if (text) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`))
+              }
+            }
+            return true
+          } catch {
+            return false
+          }
+        }
+
+        try {
+          let success = false
+          for (let i = 0; i < modelNames.length; i++) {
+            success = await runWithModel(i)
+            if (success) break
+          }
+          if (!success) throw new Error('All Gemini models failed')
+
+          if (ragSources.length > 0) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ sources: ragSources.map(s => ({ content: s.content.slice(0, 200) + (s.content.length > 200 ? '...' : ''), score: s.score })) })}\n\n`))
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+          controller.close()
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : 'Stream error'
+          console.error('Gemini stream error:', err)
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`))
+          } finally {
+            controller.close()
+          }
+        }
+      },
+    })
 
     return new Response(stream, {
       headers: {

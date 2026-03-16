@@ -298,7 +298,7 @@ export function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-[#2f2f2f]">
         <p className="text-xs text-[#8e8e8e] text-center">
-          Powered by Groq
+          Powered by Gemini
         </p>
       </div>
     </aside>

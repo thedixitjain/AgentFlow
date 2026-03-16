@@ -197,7 +197,7 @@ Context:
 ${context}`;
 
     return llmService.complete({
-      provider: 'groq',
+      provider: 'gemini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },

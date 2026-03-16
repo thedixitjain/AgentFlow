@@ -10,6 +10,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "ai": "^3.4.0",
     "clsx": "^2.1.1",
     "groq-sdk": "^0.8.0",

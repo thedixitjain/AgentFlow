@@ -72,7 +72,7 @@ export class IngestAgent extends BaseAgent {
 
     // Generate summary using LLM
     const response = await llmService.complete({
-      provider: 'groq',
+      provider: 'gemini',
       messages: [
         {
           role: 'system',
@@ -110,7 +110,7 @@ Provide a 2-3 sentence summary of what this data contains and its potential use 
     const paragraphs = content.split(/\n\n+/).filter(p => p.trim()).length;
 
     const response = await llmService.complete({
-      provider: 'groq',
+      provider: 'gemini',
       messages: [
         {
           role: 'system',

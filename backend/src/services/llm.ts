@@ -1,27 +1,27 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { llmTokensUsed, llmCost, llmLatency } from '../utils/metrics.js';
 import type { LLMProvider, LLMRequest, LLMResponse } from '../types/index.js';
 
 class LLMService {
+  private gemini: GoogleGenerativeAI | null = null;
   private groq: Groq | null = null;
   private openai: OpenAI | null = null;
-  private anthropic: Anthropic | null = null;
   private dailyCost = 0;
   private lastCostReset = new Date();
 
   constructor() {
+    if (config.llm.gemini.apiKey) {
+      this.gemini = new GoogleGenerativeAI(config.llm.gemini.apiKey);
+    }
     if (config.llm.groq.apiKey) {
       this.groq = new Groq({ apiKey: config.llm.groq.apiKey });
     }
     if (config.llm.openai.apiKey) {
       this.openai = new OpenAI({ apiKey: config.llm.openai.apiKey });
-    }
-    if (config.llm.anthropic.apiKey) {
-      this.anthropic = new Anthropic({ apiKey: config.llm.anthropic.apiKey });
     }
   }
 
@@ -33,30 +33,25 @@ class LLMService {
     }
   }
 
-  private checkBudget(estimatedCost: number): boolean {
-    this.resetDailyCostIfNeeded();
-    return (this.dailyCost + estimatedCost) <= config.costs.dailyBudget;
-  }
-
   private getAvailableProviders(): LLMProvider[] {
     const providers: LLMProvider[] = [];
+    if (this.gemini) providers.push('gemini');
     if (this.groq) providers.push('groq');
     if (this.openai) providers.push('openai');
-    if (this.anthropic) providers.push('anthropic');
     return providers;
   }
 
   private selectProvider(preferred?: LLMProvider): LLMProvider {
     const available = this.getAvailableProviders();
     if (available.length === 0) {
-      throw new Error('No LLM providers configured');
+      throw new Error('No LLM providers configured. Set GEMINI_API_KEY in your environment.');
     }
     if (preferred && available.includes(preferred)) {
       return preferred;
     }
-    // Default priority: groq (fastest/cheapest) > anthropic > openai
+    // Default priority: gemini > groq > openai
+    if (available.includes('gemini')) return 'gemini';
     if (available.includes('groq')) return 'groq';
-    if (available.includes('anthropic')) return 'anthropic';
     return 'openai';
   }
 
@@ -68,20 +63,19 @@ class LLMService {
       let response: LLMResponse;
 
       switch (provider) {
+        case 'gemini':
+          response = await this.completeGemini(request);
+          break;
         case 'groq':
           response = await this.completeGroq(request);
           break;
         case 'openai':
           response = await this.completeOpenAI(request);
           break;
-        case 'anthropic':
-          response = await this.completeAnthropic(request);
-          break;
         default:
           throw new Error(`Unknown provider: ${provider}`);
       }
 
-      // Update metrics
       const duration = (Date.now() - startTime) / 1000;
       llmLatency.observe({ provider }, duration);
       llmTokensUsed.inc({ provider, model: response.model }, response.tokensUsed);
@@ -99,16 +93,60 @@ class LLMService {
       return response;
     } catch (error) {
       logger.error('LLM completion failed', { provider, error });
-      
+
       // Try fallback provider
       const fallback = this.getAvailableProviders().find(p => p !== provider);
       if (fallback) {
         logger.info('Trying fallback provider', { fallback });
         return this.complete({ ...request, provider: fallback });
       }
-      
+
       throw error;
     }
+  }
+
+  private async completeGemini(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.gemini) throw new Error('Gemini not configured');
+
+    const startTime = Date.now();
+    const model = this.gemini.getGenerativeModel({
+      model: config.llm.gemini.model,
+    });
+
+    const systemMessage = request.messages.find(m => m.role === 'system');
+    const otherMessages = request.messages.filter(m => m.role !== 'system');
+
+    // Build chat history (all but last message)
+    const history = otherMessages.slice(0, -1).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+    const lastMessage = otherMessages[otherMessages.length - 1];
+
+    const chat = model.startChat({
+      history,
+      generationConfig: {
+        temperature: request.temperature ?? 0.4,
+        maxOutputTokens: request.maxTokens || config.llm.gemini.maxTokens,
+      },
+      systemInstruction: systemMessage?.content,
+    });
+
+    const result = await chat.sendMessage(lastMessage?.content || '');
+    const text = result.response.text();
+    const usage = result.response.usageMetadata;
+    const tokensUsed = (usage?.totalTokenCount) || 0;
+    const cost = (tokensUsed / 1000) * config.llm.gemini.costPer1kTokens;
+
+    return {
+      content: text,
+      tokensUsed,
+      provider: 'gemini',
+      model: config.llm.gemini.model,
+      responseTime: Date.now() - startTime,
+      cost,
+    };
   }
 
   private async completeGroq(request: LLMRequest): Promise<LLMResponse> {
@@ -160,36 +198,6 @@ class LLMService {
       tokensUsed,
       provider: 'openai',
       model: config.llm.openai.model,
-      responseTime: Date.now() - startTime,
-      cost,
-    };
-  }
-
-  private async completeAnthropic(request: LLMRequest): Promise<LLMResponse> {
-    if (!this.anthropic) throw new Error('Anthropic not configured');
-
-    const startTime = Date.now();
-    const systemMessage = request.messages.find(m => m.role === 'system');
-    const otherMessages = request.messages.filter(m => m.role !== 'system');
-
-    const completion = await this.anthropic.messages.create({
-      model: config.llm.anthropic.model,
-      max_tokens: request.maxTokens || config.llm.anthropic.maxTokens,
-      system: systemMessage?.content,
-      messages: otherMessages.map(m => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-    });
-
-    const tokensUsed = completion.usage.input_tokens + completion.usage.output_tokens;
-    const cost = (tokensUsed / 1000) * config.llm.anthropic.costPer1kTokens;
-
-    return {
-      content: completion.content[0].type === 'text' ? completion.content[0].text : '',
-      tokensUsed,
-      provider: 'anthropic',
-      model: config.llm.anthropic.model,
       responseTime: Date.now() - startTime,
       cost,
     };

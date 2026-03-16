@@ -336,7 +336,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
           </form>
           
           <p className="text-xs text-[#8e8e8e] text-center mt-2 md:mt-3">
-            Powered by Llama 3.3 70B with RAG
+            Powered by Gemini 2.0 Flash with RAG
           </p>
         </div>
       </div>

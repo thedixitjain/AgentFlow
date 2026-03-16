@@ -85,7 +85,7 @@ export interface Session {
 }
 
 // LLM Types
-export type LLMProvider = 'groq' | 'openai' | 'anthropic';
+export type LLMProvider = 'gemini' | 'groq' | 'openai';
 
 export interface LLMRequest {
   provider: LLMProvider;

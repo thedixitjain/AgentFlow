@@ -100,7 +100,7 @@ export default function Home() {
             name: activeDoc.name,
             type: activeDoc.type,
             content: activeDoc.content,
-            data: activeDoc.data?.slice(0, 50),
+            data: activeDoc.data ?? undefined,
             columns: activeDoc.columns,
           } : null,
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
@@ -124,46 +124,50 @@ export default function Home() {
       const decoder = new TextDecoder()
       let fullContent = ''
       let sources: Array<{ content: string; score: number }> = []
+      let buffer = ''
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
           
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
           
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6)
+              const data = line.slice(6).trim()
               if (data === '[DONE]') continue
               
               try {
                 const parsed = JSON.parse(data)
                 
-                // Check for sources (RAG)
-                if (parsed.sources) {
-                  sources = parsed.sources
+                if (parsed.error) {
+                  fullContent = `Error: ${parsed.error}`
                   setMessages(prev => prev.map(m => 
-                    m.id === streamingId 
-                      ? { ...m, sources }
-                      : m
+                    m.id === streamingId ? { ...m, content: fullContent } : m
                   ))
                   continue
                 }
                 
-                // Handle both formats: direct content or OpenAI-style delta
+                if (parsed.sources) {
+                  sources = parsed.sources
+                  setMessages(prev => prev.map(m => 
+                    m.id === streamingId ? { ...m, sources } : m
+                  ))
+                  continue
+                }
+                
                 const content = parsed.content || parsed.choices?.[0]?.delta?.content || ''
                 if (content) {
                   fullContent += content
                   setMessages(prev => prev.map(m => 
-                    m.id === streamingId 
-                      ? { ...m, content: fullContent }
-                      : m
+                    m.id === streamingId ? { ...m, content: fullContent } : m
                   ))
                 }
               } catch {
-                // Skip invalid JSON
+                // Skip invalid JSON (partial chunk)
               }
             }
           }

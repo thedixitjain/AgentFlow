@@ -47,7 +47,7 @@ ${maxLength ? `Keep the summary under ${maxLength} words.` : ''}
 Be accurate, professional, and highlight the most important information.`;
 
     return llmService.complete({
-      provider: 'groq',
+      provider: 'gemini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Summarize this:\n\n${content.slice(0, 8000)}` },

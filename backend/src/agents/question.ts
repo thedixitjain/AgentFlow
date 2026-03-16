@@ -50,7 +50,7 @@ Guidelines:
     ];
 
     return llmService.complete({
-      provider: 'groq',
+      provider: 'gemini',
       messages,
       temperature: 0.3,
     });
