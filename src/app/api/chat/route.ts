@@ -73,10 +73,14 @@ export async function POST(request: NextRequest) {
 
     systemPrompt = `You are AgentFlow, a senior AI analyst. Be concise, direct, and professional. Answer ONLY what was asked. Be succinct. Extract exact information from context. If info isn't in context, say "Not found in document".`
 
-    const chatHistory = history.slice(-6).map(m => ({
+    // Gemini requires first message to be from 'user' - trim any leading assistant messages
+    const mapped = history.slice(-6).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }))
+    const chatHistory = mapped.findIndex(m => m.role === 'user') >= 0
+      ? mapped.slice(mapped.findIndex(m => m.role === 'user'))
+      : []
 
     const userMessage = contextBlock ? `${contextBlock}User question: ${message}` : message
 
