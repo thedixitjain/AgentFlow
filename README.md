@@ -112,6 +112,8 @@ The backend can be deployed on Render as a Docker service.
    - Set `DATA_DIR=/var/data`
    - The Docker entrypoint attempts to fix ownership on that path when present
 
+**Sessions and demos:** On the free tier without a disk, the container filesystem resets when the service sleeps or redeploys, so old session IDs disappear. The frontend validates the current session before each action and creates a new one when the server no longer has it, so you should not see stuck “Session not found” errors from stale state. For portfolio-grade persistence, use a Render disk (above) or a database.
+
 Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL; comma-separated for prod + local).
 
 **Custom domain (e.g. `agentflow.thedixitjain.com` on Vercel):** see [docs/CUSTOM_DOMAIN.md](docs/CUSTOM_DOMAIN.md).

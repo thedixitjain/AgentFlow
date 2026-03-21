@@ -11,9 +11,13 @@ import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types
 import { generateInsights } from '@/lib/insights'
 import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun } from '@/lib/api'
 import { getPublicApiUrl, isProductionApiLikelyMisconfigured } from '@/lib/env'
+import { isSessionNotFoundError } from '@/lib/sessionErrors'
 
 function formatAppError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
+  if (/session not found/i.test(msg)) {
+    return 'That chat is no longer on the server (sessions reset after a deploy, disk clear, or cold start on free hosting). Use New chat or upload your file again.'
+  }
   if (
     e instanceof TypeError ||
     msg.includes('Failed to fetch') ||
@@ -111,27 +115,39 @@ export default function Home() {
     }
   }, [refreshSystemInsights])
 
-  const loadSession = useCallback(async (sessionId: string) => {
-    const session = await api.getSession(sessionId)
-    const nextDocuments = session.documents.map(mapDocument)
-    const nextMessages = session.messages.map(mapMessage)
+  const loadSession = useCallback(
+    async (sessionId: string) => {
+      let session: Session
+      try {
+        session = await api.getSession(sessionId)
+      } catch (error) {
+        if (isSessionNotFoundError(error)) {
+          await refreshChatHistory()
+        }
+        throw error
+      }
 
-    setCurrentChatId(session.id)
-    setDocuments(nextDocuments)
-    setMessages(nextMessages)
-    setActiveDocument(nextDocuments[nextDocuments.length - 1]?.name || null)
-    setShowLanding(false)
+      const nextDocuments = session.documents.map(mapDocument)
+      const nextMessages = session.messages.map(mapMessage)
 
-    const activeDoc = nextDocuments[nextDocuments.length - 1]
-    if (activeDoc) {
-      const docInsights = generateInsights(activeDoc)
-      setInsights(docInsights)
-      setShowInsights(docInsights.length > 0)
-    } else {
-      setInsights([])
-      setShowInsights(false)
-    }
-  }, [])
+      setCurrentChatId(session.id)
+      setDocuments(nextDocuments)
+      setMessages(nextMessages)
+      setActiveDocument(nextDocuments[nextDocuments.length - 1]?.name || null)
+      setShowLanding(false)
+
+      const activeDoc = nextDocuments[nextDocuments.length - 1]
+      if (activeDoc) {
+        const docInsights = generateInsights(activeDoc)
+        setInsights(docInsights)
+        setShowInsights(docInsights.length > 0)
+      } else {
+        setInsights([])
+        setShowInsights(false)
+      }
+    },
+    [refreshChatHistory]
+  )
 
   const createNewSession = useCallback(async () => {
     const session = await api.createSession()
@@ -148,12 +164,35 @@ export default function Home() {
   }, [refreshChatHistory])
 
   const ensureSession = useCallback(async () => {
-    if (currentChatId) return currentChatId
+    if (currentChatId) {
+      try {
+        await api.getSession(currentChatId)
+        return currentChatId
+      } catch (error) {
+        if (!isSessionNotFoundError(error)) throw error
+        setCurrentChatId('')
+        setMessages([])
+        setDocuments([])
+        setActiveDocument(null)
+        setInsights([])
+        setShowInsights(false)
+        await refreshChatHistory()
+      }
+    }
     return createNewSession()
-  }, [createNewSession, currentChatId])
+  }, [createNewSession, currentChatId, refreshChatHistory])
 
   useEffect(() => {
     void refreshChatHistory()
+  }, [refreshChatHistory])
+
+  /** After idle / deploy, server session list can change; refresh when user returns to the tab. */
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshChatHistory()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refreshChatHistory])
 
   useEffect(() => {
@@ -200,7 +239,14 @@ export default function Home() {
   }, [ensureSession, refreshChatHistory])
 
   const handleSendMessage = useCallback(async (content: string) => {
-    const sessionId = await ensureSession()
+    let sessionId: string
+    try {
+      sessionId = await ensureSession()
+    } catch (error) {
+      console.error('Failed to open session:', error)
+      setAppError(formatAppError(error))
+      return
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -258,13 +304,31 @@ export default function Home() {
         }
       )
 
-      await loadSession(sessionId)
+      try {
+        await loadSession(sessionId)
+      } catch (syncError) {
+        if (isSessionNotFoundError(syncError)) {
+          console.warn('Post-reply sync skipped: session not found on server')
+        } else {
+          console.warn('Post-reply sync failed', syncError)
+        }
+      }
       await refreshChatHistory()
     } catch (error) {
       console.error('Failed to send message:', error)
+      const lost = isSessionNotFoundError(error)
+      if (lost) {
+        setAppError(formatAppError(error))
+      }
       setMessages(prev => prev.map(message =>
         message.id === streamingId
-          ? { ...message, content: 'Connection error. Please try again.', isStreaming: false }
+          ? {
+              ...message,
+              content: lost
+                ? 'Session expired on the server. Click New chat, then try again.'
+                : 'Could not get a reply. Check your connection and try again.',
+              isStreaming: false,
+            }
           : message
       ))
     } finally {
