@@ -111,6 +111,7 @@ Optional. The backend also reads the repo-root `.env.local`.
 
 ```env
 PORT=4000
+DATA_DIR=./data
 GROQ_API_KEY=your_groq_api_key
 OPENAI_API_KEY=your_openai_api_key
 DAILY_BUDGET=10

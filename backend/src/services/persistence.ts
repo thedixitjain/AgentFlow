@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 
-const dataDir = resolve(process.cwd(), 'data');
+const dataDir = process.env.DATA_DIR
+  ? resolve(process.env.DATA_DIR)
+  : resolve(process.cwd(), 'data');
 
 function ensureDataDir() {
   if (!existsSync(dataDir)) {
