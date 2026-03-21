@@ -116,6 +116,19 @@ Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL; comma-separ
 
 **Custom domain (e.g. `agentflow.thedixitjain.com` on Vercel):** see [docs/CUSTOM_DOMAIN.md](docs/CUSTOM_DOMAIN.md).
 
+### Frontend (Vercel) — connect to Render without CORS issues
+
+The browser should **not** call `https://*.onrender.com` directly (CORS is easy to misconfigure). This repo **proxies** `/agentflow-api` → your Render `/api` (see `next.config.js`).
+
+**Vercel → Environment variables (Production):**
+
+| Variable | Value |
+|----------|--------|
+| `NEXT_PUBLIC_API_URL` | `/agentflow-api` |
+| `BACKEND_URL` | `https://YOUR-SERVICE.onrender.com` |
+
+Redeploy after saving. Optional: omit `BACKEND_URL` if you use the default in `next.config.js`.
+
 ## Local Setup
 
 ### Frontend `.env.local`

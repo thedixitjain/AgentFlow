@@ -468,9 +468,10 @@ export function Landing({
           </div>
 
           <p className="text-xs text-zinc-500 max-w-lg mx-auto leading-relaxed">
-            All three actions talk to your deployed API (
+            API base:{' '}
             <span className="text-zinc-400 font-mono text-[10px] break-all">{configuredApiUrl}</span>
-            ). Configure it on Vercel so recruiters can use the demo.
+            . Production: use <span className="text-zinc-400">NEXT_PUBLIC_API_URL=/agentflow-api</span> on
+            Vercel (proxied to Render — avoids CORS). See repo README.
           </p>
         </section>
 

@@ -1,54 +1,53 @@
 # Custom domain: `agentflow.thedixitjain.com`
 
-Use this when the Next.js app is on **Vercel** and the API is on **Render** (or another host).
+The Next.js app is on **Vercel** and the API is on **Render**.
 
-## 1. Vercel — connect the subdomain
+## Recommended: same-origin API proxy (no CORS pain)
 
-1. Open your **AgentFlow** project on [Vercel](https://vercel.com) → **Settings** → **Domains**.
-2. Click **Add** and enter: `agentflow.thedixitjain.com`.
-3. Vercel will show DNS records to add. Usually:
-   - **Type:** `CNAME`
-   - **Name:** `agentflow` (or `@` if using apex — subdomains almost always use `agentflow`)
-   - **Value:** `cname.vercel-dns.com` (or whatever Vercel displays — use their exact value).
+The repo proxies `/agentflow-api/*` → your Render `/api/*` via `next.config.js`. The **browser only talks to your Vercel domain**, so you do **not** rely on cross-origin requests to Render (which often fail until CORS is perfect).
 
-## 2. DNS — at your domain registrar
+### Vercel — environment variables (Production)
 
-Where **thedixitjain.com** is managed (Cloudflare, Namecheap, Google Domains, etc.):
+| Name | Value |
+|------|--------|
+| `NEXT_PUBLIC_API_URL` | `/agentflow-api` |
+| `BACKEND_URL` | `https://YOUR-SERVICE.onrender.com` (no `/api` suffix) |
 
-1. Add the **CNAME** record Vercel gave you for `agentflow`.
-2. Wait for propagation (often a few minutes; can be up to 48h).
+If you omit `BACKEND_URL`, the project defaults to the Render URL used in `next.config.js` — override it for your own fork.
 
-Confirm in Vercel that the domain shows **Valid**.
+**Redeploy** after saving (required for `NEXT_PUBLIC_*`).
 
-## 3. Vercel — environment variables
+### Render — CORS (optional when using proxy)
 
-In **Settings** → **Environment variables** (Production):
-
-| Name | Example value |
-|------|----------------|
-| `NEXT_PUBLIC_API_URL` | `https://YOUR-BACKEND.onrender.com/api` |
-
-Use your real Render (or API) URL, **HTTPS**, and include `/api` at the end.
-
-Redeploy the frontend after saving.
-
-## 4. Render (backend) — CORS
-
-In your **API** service → **Environment**, set:
+With the proxy, browsers do not call Render directly, so CORS is less critical. You can still set:
 
 ```env
 CORS_ORIGIN=https://agentflow.thedixitjain.com,http://localhost:3000
 ```
 
-- Production origin must match the browser origin **exactly** (`https`, no trailing slash).
-- Keep `http://localhost:3000` if you still test locally against production API.
+for direct API access (e.g. `curl`, mobile apps).
 
-Redeploy the backend after saving.
+---
 
-## 5. Check
+## Alternative: direct API URL (requires correct CORS)
+
+Point the browser straight at Render:
+
+| Name | Example |
+|------|---------|
+| `NEXT_PUBLIC_API_URL` | `https://YOUR-SERVICE.onrender.com/api` |
+
+Then **Render must** allow your Vercel origin in `CORS_ORIGIN` (exact URL, `https`, no trailing slash).
+
+---
+
+## 1. Vercel — connect the subdomain
+
+1. Project → **Settings** → **Domains** → add `agentflow.thedixitjain.com`.
+2. Add the **CNAME** at your DNS host that Vercel shows.
+
+## 2. Check
 
 1. Open `https://agentflow.thedixitjain.com`.
-2. Open browser **DevTools** → **Network** → send a chat or load sessions.
-3. API calls should return **200**, not CORS errors.
-
-If you see CORS errors, double-check `CORS_ORIGIN` on Render and that `NEXT_PUBLIC_API_URL` points to the same API you deployed.
+2. **Try sample data** should work without a red error banner.
+3. DevTools → **Network**: requests should go to `agentflow.thedixitjain.com/agentflow-api/...`, not to `onrender.com` from the browser.
