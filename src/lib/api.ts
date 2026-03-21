@@ -1,3 +1,4 @@
+/** Local dev: default Express URL. Vercel prod: set NEXT_PUBLIC_API_URL=/agentflow-api (same-origin proxy; see next.config.js). */
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 const WORKSPACE_STORAGE_KEY = 'agentflow_workspace_id';
 
@@ -195,8 +196,15 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || 'Request failed');
+      const text = await response.text();
+      let message = `HTTP ${response.status}`;
+      try {
+        const json = JSON.parse(text) as { error?: string };
+        if (json.error) message = json.error;
+      } catch {
+        if (text && text.length < 400) message = text;
+      }
+      throw new Error(message);
     }
 
     return response.json();
@@ -272,6 +280,11 @@ class ApiClient {
       },
       body: JSON.stringify({ message, documentId }),
     });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text.slice(0, 300) || `Stream failed (HTTP ${response.status})`);
+    }
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
