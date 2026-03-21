@@ -42,8 +42,11 @@ export const config = {
     max: 100,
   },
 
-  // CORS
+  // CORS — comma-separated origins, e.g. https://agentflow.thedixitjain.com,http://localhost:3000
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    allowedOrigins: (process.env.CORS_ORIGIN || 'http://localhost:3000')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 };

@@ -112,7 +112,9 @@ The backend can be deployed on Render as a Docker service.
    - Set `DATA_DIR=/var/data`
    - The Docker entrypoint attempts to fix ownership on that path when present
 
-Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL).
+Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL; comma-separated for prod + local).
+
+**Custom domain (e.g. `agentflow.thedixitjain.com` on Vercel):** see [docs/CUSTOM_DOMAIN.md](docs/CUSTOM_DOMAIN.md).
 
 ## Local Setup
 
