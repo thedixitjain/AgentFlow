@@ -295,12 +295,14 @@ export function Landing({
             className="flex items-center gap-3 rounded-xl p-1 -m-1 pr-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40"
             aria-label="AgentFlow, scroll to top"
           >
-            <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-[#10a37f]/40 blur-lg" />
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shadow-lg shadow-[#10a37f]/20">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
+                <Image
+                  src="/logo.png"
+                  alt="AgentFlow Logo"
+                  fill
+                  className="object-cover"
+                />
               </div>
-            </div>
             <div>
               <span className="font-display font-semibold text-lg tracking-tight">AgentFlow</span>
               <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">

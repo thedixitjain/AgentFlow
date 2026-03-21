@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2, BarChart3, Sparkles } from 'lucide-react'
+import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2, BarChart3 } from 'lucide-react'
+import Image from 'next/image'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 import { formatFileSize } from '@/lib/utils'
 
@@ -191,8 +192,14 @@ export function Sidebar({
           className="group flex items-center gap-2 px-1 mb-2 w-full text-left rounded-lg py-1 -mx-0.5 hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)] cursor-pointer relative z-20"
           aria-label="AgentFlow, go to landing page"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.02]">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 transition-transform group-hover:scale-[1.02] border border-white/[0.08]">
+            <Image
+              src="/logo.png"
+              alt="AgentFlow Logo"
+              width={32}
+              height={32}
+              className="object-cover"
+            />
           </div>
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold text-zinc-100 leading-tight">AgentFlow</p>

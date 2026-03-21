@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   description: 'Transform your documents into actionable insights with AI-powered analysis. Built for modern businesses.',
   keywords: ['AI', 'document analysis', 'data intelligence', 'LLM', 'business analytics'],
   authors: [{ name: 'Dixit Jain' }],
+  icons: {
+    icon: '/favicon.png',
+  },
   openGraph: {
     title: 'AgentFlow | AI Document Intelligence',
     description: 'Transform your documents into actionable insights with AI-powered analysis.',

@@ -5,7 +5,6 @@ import {
   Send,
   Copy,
   Check,
-  Sparkles,
   User,
   Paperclip,
   BookOpen,
@@ -18,6 +17,7 @@ import {
   Info,
   ArrowRight,
 } from 'lucide-react'
+import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 import { Message } from '@/lib/types'
 
@@ -38,7 +38,7 @@ const AGENT_CONFIG: Record<string, { icon: React.ReactNode; color: string; label
   question: { icon: <Bot className="w-4 h-4" />, color: '#8b5cf6', label: 'Question Agent' },
   verifier: { icon: <CheckCircle className="w-4 h-4" />, color: '#f59e0b', label: 'Verifier Agent' },
   summarizer: { icon: <FileText className="w-4 h-4" />, color: '#ec4899', label: 'Summarizer Agent' },
-  default: { icon: <Sparkles className="w-4 h-4" />, color: '#10a37f', label: 'AgentFlow' },
+  default: { icon: <Image src="/logo.png" alt="AF" width={16} height={16} />, color: '#10a37f', label: 'AgentFlow' },
 }
 
 export function Chat({
@@ -194,8 +194,8 @@ export function Chat({
           <div className="h-full flex flex-col items-center justify-center p-4 sm:p-8">
             <div className="max-w-lg w-full">
               <div className="text-center mb-8">
-                <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shadow-lg shadow-[#10a37f]/20">
-                  <Sparkles className="w-7 h-7 text-white" />
+                <div className="w-14 h-14 mx-auto mb-5 rounded-2xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
+                  <Image src="/logo.png" alt="AgentFlow" width={56} height={56} className="object-cover" />
                 </div>
                 <h1 className="font-display text-xl sm:text-2xl font-semibold text-zinc-100 mb-2">
                   {hasDocument ? `Ready to analyze “${documentName}”` : 'Start the demo'}
@@ -271,7 +271,9 @@ export function Chat({
                     {isUser ? (
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     ) : (
-                      <span className="text-white">{agentConfig?.icon || <Sparkles className="w-4 h-4" />}</span>
+                      <span className="text-white ring-1 ring-white/10 rounded overflow-hidden">
+                        {agentConfig?.icon || <Image src="/logo.png" alt="AF" width={20} height={20} />}
+                      </span>
                     )}
                   </div>
 
@@ -411,8 +413,8 @@ export function Chat({
 
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-3 sm:gap-4 animate-fade-in mb-6">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-[#10a37f]">
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-zinc-800 border border-white/10 overflow-hidden">
+                  <Image src="/logo.png" alt="Logo" width={40} height={40} className="object-cover opacity-80" />
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <span className="flex gap-1">

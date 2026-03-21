@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Copy, Check, Sparkles, User, Paperclip, Bot, Database, CheckCircle, FileText } from 'lucide-react'
+import { Send, Copy, Check, User, Paperclip, Bot, Database, CheckCircle, FileText } from 'lucide-react'
+import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 
 interface Message {
@@ -22,7 +23,7 @@ interface AgentChatProps {
 }
 
 const AGENT_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  orchestrator: { icon: <Sparkles className="w-4 h-4" />, color: '#10a37f', label: 'Orchestrator' },
+  orchestrator: { icon: <Image src="/logo.png" alt="AF" width={16} height={16} />, color: '#10a37f', label: 'Orchestrator' },
   ingest: { icon: <Database className="w-4 h-4" />, color: '#3b82f6', label: 'Ingest Agent' },
   question: { icon: <Bot className="w-4 h-4" />, color: '#8b5cf6', label: 'Question Agent' },
   verifier: { icon: <CheckCircle className="w-4 h-4" />, color: '#f59e0b', label: 'Verifier Agent' },
@@ -77,8 +78,8 @@ export function AgentChat({ messages, isLoading, onSendMessage, hasDocument, doc
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-8">
             <div className="max-w-2xl w-full text-center">
-              <div className="w-16 h-16 mx-auto mb-6 bg-[#10a37f] flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
+                <Image src="/logo.png" alt="AF" width={64} height={64} className="object-cover" />
               </div>
               
               <h1 className="text-2xl font-semibold mb-3 text-[#ececec]">
@@ -210,8 +211,8 @@ export function AgentChat({ messages, isLoading, onSendMessage, hasDocument, doc
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="px-4 py-6 animate-fade-in">
                 <div className="flex gap-4">
-                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-[#10a37f]">
-                    <Sparkles className="w-5 h-5 text-white" />
+                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded overflow-hidden">
+                    <Image src="/logo.png" alt="Logo" width={32} height={32} />
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-[#10a37f] animate-pulse" />
