@@ -6,9 +6,9 @@ import { VerifierAgent } from './verifier.js';
 import { SummarizerAgent } from './summarizer.js';
 import { RAGAgent } from './rag.js';
 import { ragService } from '../services/rag.js';
-import { llmService } from '../services/llm.js';
+import { telemetryService } from '../services/telemetry.js';
 import { logger } from '../utils/logger.js';
-import { taskCounter, taskDuration } from '../utils/metrics.js';
+import { taskCounter, taskDuration, routeSelections, queueSize } from '../utils/metrics.js';
 import type { Task, TaskType, Document, AgentState } from '../types/index.js';
 
 interface AgentPool {
@@ -51,6 +51,23 @@ export class OrchestratorAgent extends BaseAgent {
     return result;
   }
 
+  private getStringResult(result: Record<string, unknown>, key: string): string | undefined {
+    const value = result[key];
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private getNumberResult(result: Record<string, unknown>, key: string): number | undefined {
+    const value = result[key];
+    return typeof value === 'number' ? value : undefined;
+  }
+
+  private getSourcesResult(
+    result: Record<string, unknown>,
+  ): Array<{ content: string; score: number }> | undefined {
+    const value = result.sources;
+    return Array.isArray(value) ? value as Array<{ content: string; score: number }> : undefined;
+  }
+
   async handleMessage(
     message: string,
     document?: Document,
@@ -70,6 +87,17 @@ export class OrchestratorAgent extends BaseAgent {
 
     // Classify the intent
     const intent = await this.classifyIntent(message, document);
+    routeSelections.inc({
+      task_type: intent.taskType,
+      agent_type: intent.agentType,
+      has_document: document ? 'true' : 'false',
+    });
+    telemetryService.recordRouteDecision({
+      taskType: intent.taskType,
+      agentType: intent.agentType,
+      hasDocument: !!document,
+      reason: intent.reason,
+    });
     
     logger.info('Message classified', { intent, hasDocument: !!document });
 
@@ -81,7 +109,7 @@ export class OrchestratorAgent extends BaseAgent {
         response: ragResponse.answer,
         agentUsed: 'rag',
         tokensUsed: ragResponse.tokensUsed,
-        confidence: ragResponse.sources.length > 0 ? ragResponse.sources[0].score : 0.5,
+        confidence: ragResponse.topScore || 0.5,
         sources: ragResponse.sources,
       };
     }
@@ -110,11 +138,17 @@ export class OrchestratorAgent extends BaseAgent {
     taskCounter.inc({ type: task.type, status: 'completed' });
     taskDuration.observe({ type: task.type }, duration);
 
+    const response =
+      this.getStringResult(result, 'answer') ||
+      this.getStringResult(result, 'summary') ||
+      JSON.stringify(result);
+
     return {
-      response: result.answer || result.summary || JSON.stringify(result),
+      response,
       agentUsed: intent.agentType,
-      tokensUsed: result.tokensUsed || 0,
-      confidence: result.confidence,
+      tokensUsed: this.getNumberResult(result, 'tokensUsed') || 0,
+      confidence: this.getNumberResult(result, 'confidence'),
+      sources: this.getSourcesResult(result),
     };
   }
 
@@ -125,6 +159,7 @@ export class OrchestratorAgent extends BaseAgent {
     taskType: TaskType;
     agentType: string;
     additionalPayload: Record<string, unknown>;
+    reason: string;
   }> {
     const lowerMessage = message.toLowerCase();
 
@@ -134,6 +169,7 @@ export class OrchestratorAgent extends BaseAgent {
         taskType: 'summarize',
         agentType: 'summarizer',
         additionalPayload: { type: 'brief' },
+        reason: 'summary keyword detected in user message',
       };
     }
 
@@ -142,6 +178,7 @@ export class OrchestratorAgent extends BaseAgent {
         taskType: 'verify',
         agentType: 'verifier',
         additionalPayload: { claim: message },
+        reason: 'verification keyword detected in user message',
       };
     }
 
@@ -150,6 +187,7 @@ export class OrchestratorAgent extends BaseAgent {
         taskType: 'ingest',
         agentType: 'ingest',
         additionalPayload: { document },
+        reason: 'document exists but has not been processed yet',
       };
     }
 
@@ -158,6 +196,7 @@ export class OrchestratorAgent extends BaseAgent {
       taskType: 'question',
       agentType: 'question',
       additionalPayload: {},
+      reason: document ? 'document-backed question defaulted to question answering' : 'general chat defaulted to question answering',
     };
   }
 
@@ -168,6 +207,7 @@ export class OrchestratorAgent extends BaseAgent {
     if (!agent) {
       // Queue task if no agent available
       this.taskQueue.push(task);
+      queueSize.set({ queue: 'default' }, this.taskQueue.length);
       logger.warn('No available agent, task queued', { taskId: task.id, type: task.type });
       throw new Error('No available agent, task queued');
     }
@@ -177,9 +217,11 @@ export class OrchestratorAgent extends BaseAgent {
     try {
       const result = await agent.execute(task);
       this.activeTasks.delete(task.id);
+      queueSize.set({ queue: 'default' }, this.taskQueue.length);
       return result;
     } catch (error) {
       this.activeTasks.delete(task.id);
+      queueSize.set({ queue: 'default' }, this.taskQueue.length);
       
       if (task.retryCount < task.maxRetries) {
         task.retryCount++;

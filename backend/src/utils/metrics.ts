@@ -39,6 +39,12 @@ export const llmTokensUsed = new client.Counter({
   labelNames: ['provider', 'model'],
 });
 
+export const llmRequests = new client.Counter({
+  name: 'agentflow_llm_requests_total',
+  help: 'Total number of LLM requests',
+  labelNames: ['provider', 'status'],
+});
+
 export const llmCost = new client.Counter({
   name: 'agentflow_llm_cost_dollars',
   help: 'Total LLM cost in dollars',
@@ -58,14 +64,72 @@ export const queueSize = new client.Gauge({
   labelNames: ['queue'],
 });
 
+export const llmFallbacks = new client.Counter({
+  name: 'agentflow_llm_fallbacks_total',
+  help: 'Total number of LLM provider fallbacks',
+  labelNames: ['from_provider', 'to_provider'],
+});
+
+export const routeSelections = new client.Counter({
+  name: 'agentflow_route_selections_total',
+  help: 'Total number of routing decisions',
+  labelNames: ['task_type', 'agent_type', 'has_document'],
+});
+
+export const ragQueries = new client.Counter({
+  name: 'agentflow_rag_queries_total',
+  help: 'Total number of RAG queries',
+  labelNames: ['result'],
+});
+
+export const ragRetrievalLatency = new client.Histogram({
+  name: 'agentflow_rag_retrieval_latency_ms',
+  help: 'RAG retrieval latency in milliseconds',
+  buckets: [10, 25, 50, 100, 250, 500, 1000, 3000],
+});
+
+export const ragGenerationLatency = new client.Histogram({
+  name: 'agentflow_rag_generation_latency_ms',
+  help: 'RAG generation latency in milliseconds',
+  buckets: [50, 100, 250, 500, 1000, 3000, 5000, 10000],
+});
+
+export const ragTopScore = new client.Histogram({
+  name: 'agentflow_rag_top_score',
+  help: 'Top retrieval similarity score for RAG queries',
+  buckets: [0, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1],
+});
+
+export const evalRuns = new client.Counter({
+  name: 'agentflow_eval_runs_total',
+  help: 'Total number of evaluation runs',
+  labelNames: ['suite', 'status'],
+});
+
+export const evalCaseScore = new client.Histogram({
+  name: 'agentflow_eval_case_score',
+  help: 'Per-case evaluation score',
+  labelNames: ['suite'],
+  buckets: [0, 0.25, 0.5, 0.75, 1],
+});
+
 // Register all metrics
 register.registerMetric(httpRequestDuration);
 register.registerMetric(activeAgents);
 register.registerMetric(taskCounter);
 register.registerMetric(taskDuration);
 register.registerMetric(llmTokensUsed);
+register.registerMetric(llmRequests);
 register.registerMetric(llmCost);
 register.registerMetric(llmLatency);
 register.registerMetric(queueSize);
+register.registerMetric(llmFallbacks);
+register.registerMetric(routeSelections);
+register.registerMetric(ragQueries);
+register.registerMetric(ragRetrievalLatency);
+register.registerMetric(ragGenerationLatency);
+register.registerMetric(ragTopScore);
+register.registerMetric(evalRuns);
+register.registerMetric(evalCaseScore);
 
 export { register };

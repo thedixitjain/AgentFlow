@@ -120,16 +120,16 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
               
               <p className="text-sm md:text-base text-[#b4b4b4] mb-6 md:mb-8 px-4">
                 {hasDocument 
-                  ? 'Ask any question about your document. I use RAG to find relevant information and cite sources.'
-                  : 'I can help with coding, data analysis, writing, and general questions.'}
+                  ? 'Ask business questions about your document. I use RAG to find evidence and cite sources.'
+                  : 'I can help analyze sales, finance, and operations documents with grounded answers.'}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 max-w-lg mx-auto px-4">
                 {[
-                  hasDocument ? 'Summarize this document' : 'Explain a concept',
-                  hasDocument ? 'What are the key metrics?' : 'Help me write code',
-                  hasDocument ? 'Find trends in the data' : 'Analyze some data',
-                  hasDocument ? 'Compare different values' : 'Answer a question',
+                  hasDocument ? 'Summarize this report for leadership' : 'Summarize a business update',
+                  hasDocument ? 'What are the key metrics?' : 'Analyze a sales spreadsheet',
+                  hasDocument ? 'Find trends in the data' : 'Compare regional performance',
+                  hasDocument ? 'What risks or anomalies stand out?' : 'Extract action items from a report',
                 ].map((prompt) => (
                   <button
                     key={prompt}
@@ -311,7 +311,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Message AgentFlow..."
+                placeholder="Ask about sales, finance, or ops documents..."
                 rows={1}
                 className="w-full bg-transparent px-3 md:px-4 py-2 md:py-3 text-sm md:text-base text-[#ececec] resize-none focus:outline-none placeholder:text-[#8e8e8e] min-h-[44px] md:min-h-[52px] max-h-[200px]"
               />
@@ -336,7 +336,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
           </form>
           
           <p className="text-xs text-[#8e8e8e] text-center mt-2 md:mt-3">
-            Powered by Gemini 2.0 Flash with RAG
+            Powered by Groq with backend RAG and workspace isolation
           </p>
         </div>
       </div>

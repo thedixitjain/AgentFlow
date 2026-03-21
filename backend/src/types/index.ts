@@ -42,7 +42,7 @@ export interface Task {
 }
 
 // Document Types
-export type DocumentType = 'csv' | 'xlsx' | 'pdf' | 'txt';
+export type DocumentType = 'csv' | 'xlsx' | 'pdf' | 'txt' | 'docx' | 'pptx';
 
 export interface Document {
   id: string;
@@ -57,6 +57,7 @@ export interface Document {
     processedAt?: Date;
     rowCount?: number;
     wordCount?: number;
+    indexed?: boolean;
   };
 }
 
@@ -67,6 +68,11 @@ export interface Message {
   content: string;
   agentType?: AgentType;
   timestamp: Date;
+  sources?: Array<{
+    content: string;
+    score: number;
+    chunkIndex?: number;
+  }>;
   metadata?: {
     tokensUsed?: number;
     responseTime?: number;
@@ -77,6 +83,7 @@ export interface Message {
 // Session Types
 export interface Session {
   id: string;
+  workspaceId: string;
   documents: Document[];
   messages: Message[];
   agentStates: Record<string, AgentState>;

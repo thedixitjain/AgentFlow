@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2, BarChart3 } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 import { formatFileSize } from '@/lib/utils'
 
@@ -20,6 +20,7 @@ interface SidebarProps {
   onLoadChat: (chat: ChatHistory) => void
   onDeleteChat: (id: string) => void
   onBackToHome: () => void
+  onOpenSystemInsights: () => void
 }
 
 export function Sidebar({
@@ -33,6 +34,7 @@ export function Sidebar({
   onLoadChat,
   onDeleteChat,
   onBackToHome,
+  onOpenSystemInsights,
 }: SidebarProps) {
   const processFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -197,6 +199,13 @@ export function Sidebar({
           <Plus className="w-4 h-4" />
           New Chat
         </button>
+        <button
+          onClick={onOpenSystemInsights}
+          className="w-full mt-2 flex items-center gap-2 px-3 py-2.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-[#ececec] text-sm font-medium transition-colors"
+        >
+          <BarChart3 className="w-4 h-4" />
+          System Insights
+        </button>
       </div>
 
       {/* Upload Area */}
@@ -298,7 +307,7 @@ export function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-[#2f2f2f]">
         <p className="text-xs text-[#8e8e8e] text-center">
-          Powered by Gemini
+          Persistent backend sessions with Groq
         </p>
       </div>
     </aside>

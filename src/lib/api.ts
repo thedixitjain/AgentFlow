@@ -1,7 +1,24 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const WORKSPACE_STORAGE_KEY = 'agentflow_workspace_id';
+
+function getWorkspaceId(): string {
+  if (typeof window === 'undefined') {
+    return 'local-workspace';
+  }
+
+  const existing = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const nextId = window.crypto?.randomUUID?.() || `workspace-${Date.now()}`;
+  window.localStorage.setItem(WORKSPACE_STORAGE_KEY, nextId);
+  return nextId;
+}
 
 export interface Session {
   id: string;
+  workspaceId: string;
   documents: Document[];
   messages: Message[];
   createdAt: string;
@@ -13,8 +30,13 @@ export interface Document {
   name: string;
   type: string;
   size: number;
+  content?: string;
+  data?: Record<string, unknown>[];
+  columns?: string[];
   metadata: {
     uploadedAt: string;
+    processedAt?: string;
+    indexed?: boolean;
     rowCount?: number;
     wordCount?: number;
   };
@@ -26,6 +48,11 @@ export interface Message {
   content: string;
   agentType?: string;
   timestamp: string;
+  sources?: Array<{
+    content: string;
+    score: number;
+    chunkIndex?: number;
+  }>;
   metadata?: {
     tokensUsed?: number;
     responseTime?: number;
@@ -61,7 +88,90 @@ export interface SystemStats {
     limit: number;
     percentage: number;
   };
+  rag: {
+    totalDocuments: number;
+    totalChunks: number;
+    avgChunksPerDocument: number;
+  };
+  telemetry: TelemetrySummary;
+  latestEval: EvalRun | null;
   uptime: number;
+}
+
+export interface TelemetrySummary {
+  routes: {
+    total: number;
+    recent: Array<{
+      timestamp: string;
+      taskType: string;
+      agentType: string;
+      hasDocument: boolean;
+      reason: string;
+    }>;
+    breakdown: Record<string, number>;
+  };
+  retrieval: {
+    total: number;
+    averageTopScore: number;
+    averageRetrievalLatencyMs: number;
+    averageGenerationLatencyMs: number;
+    recent: Array<{
+      timestamp: string;
+      query: string;
+      documentId?: string;
+      sourceCount: number;
+      topScore: number;
+      retrievalTimeMs: number;
+      generationTimeMs: number;
+    }>;
+  };
+  providers: {
+    total: number;
+    breakdown: Record<string, number>;
+    recent: Array<{
+      timestamp: string;
+      provider: string;
+      model: string;
+      tokensUsed: number;
+      cost: number;
+      durationSeconds: number;
+      success: boolean;
+      fallbackFrom?: string;
+    }>;
+  };
+  evals: {
+    total: number;
+    recent: Array<{
+      timestamp: string;
+      suite: string;
+      averageScore: number;
+      passedCases: number;
+      totalCases: number;
+    }>;
+  };
+}
+
+export interface EvalRun {
+  id: string;
+  suiteId: string;
+  createdAt: string;
+  averageScore: number;
+  passedCases: number;
+  totalCases: number;
+  results: Array<{
+    caseId: string;
+    title: string;
+    question: string;
+    answer: string;
+    score: number;
+    passed: boolean;
+    matchedKeywords: string[];
+    missingKeywords: string[];
+    retrievalTimeMs: number;
+    generationTimeMs: number;
+    topScore: number;
+    tokensUsed: number;
+  }>;
 }
 
 class ApiClient {
@@ -79,6 +189,7 @@ class ApiClient {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'X-Workspace-Id': getWorkspaceId(),
         ...options.headers,
       },
     });
@@ -92,6 +203,10 @@ class ApiClient {
   }
 
   // Sessions
+  async listSessions(): Promise<Session[]> {
+    return this.request<Session[]>('/sessions');
+  }
+
   async createSession(): Promise<Session> {
     return this.request<Session>('/sessions', { method: 'POST' });
   }
@@ -105,23 +220,27 @@ class ApiClient {
   }
 
   // Documents
-  async uploadDocument(sessionId: string, file: File): Promise<Document> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch(
-      `${this.baseUrl}/sessions/${sessionId}/documents`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to upload document');
+  async createParsedDocument(
+    sessionId: string,
+    document: {
+      name: string;
+      type: string;
+      size: number;
+      content?: string;
+      data?: Record<string, unknown>[];
+      columns?: string[];
     }
+  ): Promise<Document> {
+    return this.request<Document>(`/sessions/${sessionId}/documents/parsed`, {
+      method: 'POST',
+      body: JSON.stringify(document),
+    });
+  }
 
-    return response.json();
+  async deleteDocument(sessionId: string, documentId: string): Promise<void> {
+    await this.request(`/sessions/${sessionId}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
   }
 
   // Chat
@@ -141,11 +260,16 @@ class ApiClient {
     message: string,
     onChunk: (content: string) => void,
     onComplete: (agentUsed: string) => void,
-    documentId?: string
+    documentId?: string,
+    onSources?: (sources: Array<{ content: string; score: number; chunkIndex?: number }>) => void,
+    onError?: (error: string) => void
   ): Promise<void> {
     const response = await fetch(`${this.baseUrl}/sessions/${sessionId}/chat/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Workspace-Id': getWorkspaceId(),
+      },
       body: JSON.stringify({ message, documentId }),
     });
 
@@ -171,6 +295,12 @@ class ApiClient {
             if (parsed.content) {
               onChunk(parsed.content);
             }
+            if (parsed.sources && onSources) {
+              onSources(parsed.sources);
+            }
+            if (parsed.error && onError) {
+              onError(parsed.error);
+            }
             if (parsed.done && parsed.agentUsed) {
               onComplete(parsed.agentUsed);
             }
@@ -190,6 +320,21 @@ class ApiClient {
   // Stats
   async getStats(): Promise<SystemStats> {
     return this.request('/stats');
+  }
+
+  async getTelemetry(): Promise<TelemetrySummary> {
+    return this.request('/telemetry');
+  }
+
+  async getEvalRuns(): Promise<{ runs: EvalRun[] }> {
+    return this.request('/evals/runs');
+  }
+
+  async runEvalSuite(suiteId: string = 'baseline-document-qa'): Promise<EvalRun> {
+    return this.request('/evals/run', {
+      method: 'POST',
+      body: JSON.stringify({ suiteId }),
+    });
   }
 
   // Budget

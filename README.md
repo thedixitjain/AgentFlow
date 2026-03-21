@@ -1,184 +1,213 @@
 # AgentFlow
 
-Multi-Agent AI System for Document Intelligence
+Business document copilot built as a multi-agent RAG system for sales, finance, and operations workflows.
 
-[![Deploy](https://img.shields.io/badge/Deploy-Vercel-black)](https://agentflow-thedixitjain.vercel.app/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+## Why This Project Matters
 
-## Overview
+AgentFlow is no longer just a generic document chatbot. It now demonstrates the parts hiring teams actually look for in applied AI engineering work:
 
-AgentFlow is a production-ready multi-agent AI system that intelligently routes queries to specialized agents for optimal document analysis and question answering.
+- persistent backend state for sessions, messages, and vector chunks
+- multi-agent routing across ingest, question answering, verification, summarization, and RAG
+- measurable evals and telemetry instead of unverified demos
+- workspace-scoped session isolation
+- provider-aware backend with Groq-first inference and tracked cost/latency
+
+This makes it a stronger portfolio project for AI Engineer, Applied AI, GenAI Engineer, and AI/ML platform-oriented roles.
+
+## Current Status
+
+What works today:
+
+- persistent sessions and document storage on the backend
+- persistent vector chunk storage for RAG
+- Groq-backed question answering and summarization
+- evaluation harness with saved run history
+- telemetry for routing, retrieval, provider usage, latency, and eval summaries
+- workspace-scoped access to sessions and documents
+- system insights panel in the frontend for demo-friendly metrics
+
+What is intentionally still lightweight:
+
+- auth is not implemented
+- persistence is file-backed, not Postgres-backed
+- workspace isolation is header-based, not identity-backed
+
+## Demo Assets
+
+Animated walkthrough:
+
+![AgentFlow demo](docs/media/demo.gif)
+
+Screenshots:
+
+![Landing screen](docs/media/landing.png)
+![Chat workflow](docs/media/chat.png)
+![System insights](docs/media/system-insights.png)
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (Next.js)                    │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐ │
-│  │ Landing │  │  Chat   │  │ Sidebar │  │    Dashboard    │ │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Backend API (Node.js)                    │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                    Orchestrator Agent                    ││
-│  │         (Routes queries to specialized agents)           ││
-│  └─────────────────────────────────────────────────────────┘│
-│       │            │            │            │               │
-│       ▼            ▼            ▼            ▼               │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
-│  │ Ingest  │  │Question │  │Verifier │  │Summarize│        │
-│  │  Agent  │  │  Agent  │  │  Agent  │  │  Agent  │        │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      LLM Providers                           │
-│     Groq (Primary)  │  OpenAI (Fallback)  │  Anthropic      │
-└─────────────────────────────────────────────────────────────┘
+```text
+Frontend (Next.js)
+  -> Chat, sidebar, document upload, system insights panel
+  -> Calls backend API with workspace-scoped headers
+
+Backend (Express + TypeScript)
+  -> Session routes
+  -> Multi-agent orchestration
+  -> RAG retrieval + vector search
+  -> Eval harness
+  -> Telemetry + Prometheus metrics
+
+Persistence
+  -> backend/data/sessions.json
+  -> backend/data/vectors.json
+  -> backend/data/eval-runs.json
+
+LLM Layer
+  -> Groq primary
+  -> Gemini / OpenAI fallback-ready
 ```
 
-## Features
+## Demo Flow
 
-- **Multi-Agent Architecture** — Specialized agents for different tasks
-- **Intelligent Routing** — Orchestrator routes queries to optimal agent
-- **Document Analysis** — CSV, Excel, PDF, TXT support
-- **Streaming Responses** — Real-time AI responses via SSE
-- **LLM Fallback** — Automatic provider switching on failure
-- **Cost Management** — Daily budget limits and tracking
-- **Metrics & Monitoring** — Prometheus-compatible metrics
-- **Chat History** — Persistent conversation storage
+Recommended local demo:
 
-## Agents
+1. Open the app and create a new chat.
+2. Upload a sales, finance, or ops document.
+3. Ask a grounded question such as:
+   - `What changed in Q4?`
+   - `Which region had the highest revenue?`
+   - `Summarize the operational risks for leadership.`
+4. Open `System Insights` from the sidebar.
+5. Run the eval suite and show:
+   - latest eval score
+   - retrieval latency
+   - provider usage
+   - routing decisions
 
-| Agent | Purpose |
-|-------|---------|
-| **Orchestrator** | Routes queries, manages task queue |
-| **Ingest** | Processes and analyzes documents |
-| **Question** | Answers questions with context |
-| **Verifier** | Validates claims and facts |
-| **Summarizer** | Creates document summaries |
+## Key Features
 
-## Tech Stack
+- Multi-agent orchestration with an explicit orchestrator
+- Persistent RAG document indexing and retrieval
+- Workspace-scoped backend access model
+- Eval harness for repeatable document QA checks
+- Telemetry endpoint for recent route, retrieval, and provider behavior
+- System insights UI for live demos
+- Business-document positioning instead of a generic chatbot UX
 
-**Frontend**
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- React Markdown
+## Local Setup
 
-**Backend**
-- Node.js / Express
-- TypeScript
-- BullMQ (Task Queue)
-- Redis
+### Frontend `.env.local`
 
-**AI/ML**
-- Groq (Llama 3.3 70B)
-- OpenAI (GPT-4)
-- Anthropic (Claude 3)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key_here
+```
 
-**Infrastructure**
-- Docker
-- GitHub Actions CI/CD
-- Prometheus Metrics
+### Backend `.env`
 
-## Quick Start
+Optional. The backend also reads the repo-root `.env.local`.
 
-### Frontend Only (Vercel)
+```env
+PORT=4000
+GROQ_API_KEY=your_groq_api_key
+OPENAI_API_KEY=your_openai_api_key
+DAILY_BUDGET=10
+CORS_ORIGIN=http://localhost:3000
+```
+
+### Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-### Full Stack (Docker)
+In a second terminal:
 
 ```bash
-# Copy environment files
-cp .env.example .env.local
-cp backend/.env.example backend/.env
-
-# Add your API keys to backend/.env
-# GROQ_API_KEY=your_key
-
-# Start all services
-docker-compose up -d
-```
-
-### Manual Setup
-
-```bash
-# Frontend
-npm install
-npm run dev
-
-# Backend (separate terminal)
 cd backend
 npm install
 npm run dev
 ```
 
-## Environment Variables
+If `3000` is already occupied, Next.js may start on another port such as `3002`.
 
-### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
-```
+## Important Endpoints
 
-### Backend (backend/.env)
-```
-PORT=4000
-GROQ_API_KEY=your_groq_api_key
-OPENAI_API_KEY=your_openai_api_key (optional)
-ANTHROPIC_API_KEY=your_anthropic_api_key (optional)
-REDIS_HOST=localhost
-DAILY_BUDGET=10
-```
+Core:
 
-## API Endpoints
+- `GET /api/sessions`
+- `POST /api/sessions`
+- `GET /api/sessions/:id`
+- `POST /api/sessions/:id/documents/parsed`
+- `DELETE /api/sessions/:id/documents/:documentId`
+- `POST /api/sessions/:id/chat`
+- `POST /api/sessions/:id/chat/stream`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/sessions` | Create session |
-| GET | `/api/sessions/:id` | Get session |
-| POST | `/api/sessions/:id/documents` | Upload document |
-| POST | `/api/sessions/:id/chat` | Send message |
-| POST | `/api/sessions/:id/chat/stream` | Stream message |
-| GET | `/api/agents/status` | Agent status |
-| GET | `/api/stats` | System stats |
-| GET | `/api/metrics` | Prometheus metrics |
+Observability:
 
-## Deployment
+- `GET /api/stats`
+- `GET /api/telemetry`
+- `GET /api/metrics`
 
-### Vercel (Frontend)
-Automatic deployment on push to main branch.
+Evaluation:
 
-### Docker
-```bash
-docker-compose up -d
-```
+- `GET /api/evals/suites`
+- `GET /api/evals/runs`
+- `POST /api/evals/run`
 
-### Kubernetes
-Helm charts available in `/k8s` directory.
+## Evaluation and Telemetry
 
-## Monitoring
+Evaluation runs are saved to:
 
-Access Prometheus metrics at `/api/metrics`:
-- `agentflow_tasks_total` — Task count by type/status
-- `agentflow_llm_tokens_total` — Token usage
-- `agentflow_llm_cost_dollars` — Cost tracking
-- `agentflow_active_agents` — Agent status
+- `backend/data/eval-runs.json`
+
+Persistent runtime data is saved to:
+
+- `backend/data/sessions.json`
+- `backend/data/vectors.json`
+
+Tracked metrics include:
+
+- route selection counts
+- retrieval latency and top-score quality
+- provider request counts, fallbacks, token usage, and cost
+- eval suite runs and per-case scores
+
+## Portfolio Highlights
+
+The strongest talking points for interviews are:
+
+- moved the app from browser-local state to persistent backend sessions and vectors
+- added a measurable eval harness instead of relying on subjective demos
+- instrumented routing, retrieval, provider, and cost behavior for observability
+- introduced workspace-scoped isolation and log redaction as practical security steps
+- reframed the app around business document intelligence, improving product clarity
+
+## Resume Bullets
+
+Copy-ready bullets live here:
+
+- [docs/RESUME_BULLETS.md](docs/RESUME_BULLETS.md)
+
+## Demo Shot List
+
+Suggested screenshots / GIF sequence lives here:
+
+- [docs/DEMO_SHOTLIST.md](docs/DEMO_SHOTLIST.md)
+
+## Tech Stack
+
+- Next.js 14
+- React + TypeScript
+- Express + TypeScript
+- Groq SDK
+- Gemini SDK
+- Recharts
+- Prometheus client
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
-
-## Author
-
-**Dixit Jain**
-- GitHub: [@thedixitjain](https://github.com/thedixitjain)
-- LinkedIn: [/in/thedixitjain](https://linkedin.com/in/thedixitjain)
+MIT

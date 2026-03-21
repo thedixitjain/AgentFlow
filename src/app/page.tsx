@@ -5,9 +5,47 @@ import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
 import { InsightsPanel } from '@/components/InsightsPanel'
+import { SystemInsightsPanel } from '@/components/SystemInsightsPanel'
 import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types'
-import { storage } from '@/lib/storage'
 import { generateInsights } from '@/lib/insights'
+import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun } from '@/lib/api'
+
+function mapDocument(document: ApiDocument): DocumentFile {
+  return {
+    id: document.id,
+    name: document.name,
+    type: document.type as DocumentFile['type'],
+    size: document.size,
+    content: document.content,
+    data: document.data,
+    columns: document.columns,
+    uploadedAt: new Date(document.metadata.uploadedAt),
+  }
+}
+
+function mapMessage(message: ApiMessage): Message {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    timestamp: new Date(message.timestamp),
+    agentType: message.agentType,
+    sources: message.sources,
+  }
+}
+
+function mapSessionToHistory(session: Session): ChatHistory {
+  const firstUserMessage = session.messages.find(message => message.role === 'user')?.content
+  const title = firstUserMessage?.slice(0, 50) || session.documents[0]?.name || 'New Chat'
+
+  return {
+    id: session.id,
+    title,
+    messages: session.messages.map(mapMessage),
+    createdAt: new Date(session.createdAt),
+    updatedAt: new Date(session.updatedAt),
+  }
+}
 
 export default function Home() {
   const [documents, setDocuments] = useState<DocumentFile[]>([])
@@ -19,56 +57,127 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
   const [insights, setInsights] = useState<DocumentInsight[]>([])
   const [showInsights, setShowInsights] = useState(false)
+  const [showSystemInsights, setShowSystemInsights] = useState(false)
+  const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
+  const [recentEval, setRecentEval] = useState<EvalRun | null>(null)
 
-  useEffect(() => {
-    setChatHistory(storage.getChats())
+  const refreshChatHistory = useCallback(async () => {
+    try {
+      const sessions = await api.listSessions()
+      setChatHistory(sessions.map(mapSessionToHistory))
+    } catch (error) {
+      console.error('Failed to refresh sessions:', error)
+    }
   }, [])
 
-  useEffect(() => {
-    if (messages.length > 0 && currentChatId) {
-      const title = messages[0]?.content.slice(0, 50) || 'New Chat'
-      const chat: ChatHistory = {
-        id: currentChatId,
-        title,
-        messages,
-        createdAt: new Date(currentChatId),
-        updatedAt: new Date(),
-      }
-      storage.saveChat(chat)
-      setChatHistory(storage.getChats())
+  const refreshSystemInsights = useCallback(async () => {
+    try {
+      const stats = await api.getStats()
+      setSystemStats(stats)
+      setRecentEval(stats.latestEval)
+    } catch (error) {
+      console.error('Failed to refresh system insights:', error)
     }
-  }, [messages, currentChatId])
+  }, [])
 
-  const handleFileUpload = useCallback((file: DocumentFile) => {
-    setDocuments(prev => {
-      const exists = prev.find(d => d.name === file.name)
-      if (exists) return prev
-      return [...prev, file]
-    })
-    setActiveDocument(file.name)
+  const runEvalSuite = useCallback(async () => {
+    try {
+      const evalRun = await api.runEvalSuite()
+      setRecentEval(evalRun)
+      await refreshSystemInsights()
+    } catch (error) {
+      console.error('Failed to run eval suite:', error)
+    }
+  }, [refreshSystemInsights])
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    const session = await api.getSession(sessionId)
+    const nextDocuments = session.documents.map(mapDocument)
+    const nextMessages = session.messages.map(mapMessage)
+
+    setCurrentChatId(session.id)
+    setDocuments(nextDocuments)
+    setMessages(nextMessages)
+    setActiveDocument(nextDocuments[nextDocuments.length - 1]?.name || null)
     setShowLanding(false)
-    
-    // Generate insights
-    const docInsights = generateInsights(file)
-    setInsights(docInsights)
-    if (docInsights.length > 0) setShowInsights(true)
-    
-    const systemMessage: Message = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: `**${file.name}** loaded successfully.\n\n` +
-        (file.type === 'csv' || file.type === 'xlsx' 
-          ? `**${file.data?.length.toLocaleString()}** rows, **${file.columns?.length}** columns.\n\nAsk me anything about this data.`
-          : `**${file.content?.split(/\s+/).length.toLocaleString()}** words.\n\nAsk me to summarize or find specific information.`),
-      timestamp: new Date(),
+
+    const activeDoc = nextDocuments[nextDocuments.length - 1]
+    if (activeDoc) {
+      const docInsights = generateInsights(activeDoc)
+      setInsights(docInsights)
+      setShowInsights(docInsights.length > 0)
+    } else {
+      setInsights([])
+      setShowInsights(false)
     }
-    setMessages(prev => [...prev, systemMessage])
   }, [])
+
+  const createNewSession = useCallback(async () => {
+    const session = await api.createSession()
+    setCurrentChatId(session.id)
+    setDocuments([])
+    setMessages([])
+    setActiveDocument(null)
+    setInsights([])
+    setShowInsights(false)
+    setShowSystemInsights(false)
+    setShowLanding(false)
+    await refreshChatHistory()
+    return session.id
+  }, [refreshChatHistory])
+
+  const ensureSession = useCallback(async () => {
+    if (currentChatId) return currentChatId
+    return createNewSession()
+  }, [createNewSession, currentChatId])
+
+  useEffect(() => {
+    void refreshChatHistory()
+  }, [refreshChatHistory])
+
+  useEffect(() => {
+    if (showSystemInsights) {
+      void refreshSystemInsights()
+    }
+  }, [refreshSystemInsights, showSystemInsights])
+
+  const handleFileUpload = useCallback(async (file: DocumentFile) => {
+    const sessionId = await ensureSession()
+
+    try {
+      const saved = await api.createParsedDocument(sessionId, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        content: file.content,
+        data: file.data,
+        columns: file.columns,
+      })
+
+      const mappedDocument = mapDocument(saved)
+      setDocuments(prev => {
+        const existingIndex = prev.findIndex(document => document.id === mappedDocument.id)
+        if (existingIndex >= 0) {
+          const next = [...prev]
+          next[existingIndex] = mappedDocument
+          return next
+        }
+        return [...prev, mappedDocument]
+      })
+      setActiveDocument(mappedDocument.name)
+      setShowLanding(false)
+
+      const docInsights = generateInsights(mappedDocument)
+      setInsights(docInsights)
+      setShowInsights(docInsights.length > 0)
+      await refreshChatHistory()
+    } catch (error) {
+      console.error('Failed to save document:', error)
+    }
+  }, [ensureSession, refreshChatHistory])
 
   const handleSendMessage = useCallback(async (content: string) => {
-    if (!currentChatId) {
-      setCurrentChatId(Date.now().toString())
-    }
+    const sessionId = await ensureSession()
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -76,10 +185,11 @@ export default function Home() {
       content,
       timestamp: new Date(),
     }
+
     setMessages(prev => [...prev, userMessage])
     setIsLoading(true)
 
-    const streamingId = (Date.now() + 1).toString()
+    const streamingId = `stream-${Date.now()}`
     setMessages(prev => [...prev, {
       id: streamingId,
       role: 'assistant',
@@ -89,138 +199,114 @@ export default function Home() {
     }])
 
     try {
-      const activeDoc = documents.find(d => d.name === activeDocument)
-      
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: content,
-          document: activeDoc ? {
-            name: activeDoc.name,
-            type: activeDoc.type,
-            content: activeDoc.content,
-            data: activeDoc.data ?? undefined,
-            columns: activeDoc.columns,
-          } : null,
-          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
-          mode: activeDoc ? 'document' : 'chat',
-        }),
-      })
+      const activeDoc = documents.find(document => document.name === activeDocument)
 
-      // Check for error response
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        setMessages(prev => prev.map(m => 
-          m.id === streamingId 
-            ? { ...m, content: `Error: ${errorData.error || 'Failed to get response'}`, isStreaming: false }
-            : m
-        ))
-        setIsLoading(false)
-        return
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ''
-      let sources: Array<{ content: string; score: number }> = []
-      let buffer = ''
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6).trim()
-              if (data === '[DONE]') continue
-              
-              try {
-                const parsed = JSON.parse(data)
-                
-                if (parsed.error) {
-                  fullContent = `Error: ${parsed.error}`
-                  setMessages(prev => prev.map(m => 
-                    m.id === streamingId ? { ...m, content: fullContent } : m
-                  ))
-                  continue
-                }
-                
-                if (parsed.sources) {
-                  sources = parsed.sources
-                  setMessages(prev => prev.map(m => 
-                    m.id === streamingId ? { ...m, sources } : m
-                  ))
-                  continue
-                }
-                
-                const content = parsed.content || parsed.choices?.[0]?.delta?.content || ''
-                if (content) {
-                  fullContent += content
-                  setMessages(prev => prev.map(m => 
-                    m.id === streamingId ? { ...m, content: fullContent } : m
-                  ))
-                }
-              } catch {
-                // Skip invalid JSON (partial chunk)
-              }
-            }
-          }
+      await api.streamMessage(
+        sessionId,
+        content,
+        (chunk) => {
+          setMessages(prev => prev.map(message =>
+            message.id === streamingId
+              ? { ...message, content: message.content + chunk }
+              : message
+          ))
+        },
+        (agentUsed) => {
+          setMessages(prev => prev.map(message =>
+            message.id === streamingId
+              ? { ...message, agentType: agentUsed, isStreaming: false }
+              : message
+          ))
+        },
+        activeDoc?.id,
+        (sources) => {
+          setMessages(prev => prev.map(message =>
+            message.id === streamingId
+              ? { ...message, sources }
+              : message
+          ))
+        },
+        (error) => {
+          setMessages(prev => prev.map(message =>
+            message.id === streamingId
+              ? { ...message, content: error, isStreaming: false }
+              : message
+          ))
         }
-      }
+      )
 
-      setMessages(prev => prev.map(m => 
-        m.id === streamingId 
-          ? { ...m, isStreaming: false }
-          : m
-      ))
-    } catch {
-      setMessages(prev => prev.map(m => 
-        m.id === streamingId 
-          ? { ...m, content: 'Connection error. Please try again.', isStreaming: false }
-          : m
+      await loadSession(sessionId)
+      await refreshChatHistory()
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      setMessages(prev => prev.map(message =>
+        message.id === streamingId
+          ? { ...message, content: 'Connection error. Please try again.', isStreaming: false }
+          : message
       ))
     } finally {
       setIsLoading(false)
     }
-  }, [documents, activeDocument, messages, currentChatId])
+  }, [activeDocument, documents, ensureSession, loadSession, refreshChatHistory])
 
   const handleRemoveDocument = useCallback((name: string) => {
-    setDocuments(prev => prev.filter(d => d.name !== name))
-    if (activeDocument === name) {
-      const remaining = documents.filter(d => d.name !== name)
-      setActiveDocument(remaining.length > 0 ? remaining[0].name : null)
-      if (remaining.length === 0) {
-        setInsights([])
-        setShowInsights(false)
+    void (async () => {
+      const target = documents.find(document => document.name === name)
+      if (target?.id && currentChatId) {
+        try {
+          await api.deleteDocument(currentChatId, target.id)
+        } catch (error) {
+          console.error('Failed to delete document:', error)
+        }
       }
-    }
-  }, [activeDocument, documents])
+
+      setDocuments(prev => prev.filter(document => document.name !== name))
+      if (activeDocument === name) {
+        const remaining = documents.filter(document => document.name !== name)
+        const nextActive = remaining.length > 0 ? remaining[0].name : null
+        setActiveDocument(nextActive)
+
+        if (nextActive) {
+          const nextDocument = remaining[0]
+          const docInsights = generateInsights(nextDocument)
+          setInsights(docInsights)
+          setShowInsights(docInsights.length > 0)
+        } else {
+          setInsights([])
+          setShowInsights(false)
+        }
+      }
+    })()
+  }, [activeDocument, currentChatId, documents])
 
   const handleNewChat = useCallback(() => {
-    setMessages([])
-    setActiveDocument(null)
-    setCurrentChatId(Date.now().toString())
-  }, [])
+    void createNewSession()
+  }, [createNewSession])
 
   const handleLoadChat = useCallback((chat: ChatHistory) => {
-    setMessages(chat.messages)
-    setCurrentChatId(chat.id)
-    setShowLanding(false)
-  }, [])
+    void loadSession(chat.id)
+  }, [loadSession])
 
   const handleDeleteChat = useCallback((id: string) => {
-    storage.deleteChat(id)
-    setChatHistory(storage.getChats())
-    if (currentChatId === id) {
-      handleNewChat()
-    }
-  }, [currentChatId, handleNewChat])
+    void (async () => {
+      try {
+        await api.deleteSession(id)
+        await refreshChatHistory()
+        if (currentChatId === id) {
+          setMessages([])
+          setDocuments([])
+          setActiveDocument(null)
+          setCurrentChatId('')
+          setInsights([])
+          setShowInsights(false)
+          setShowSystemInsights(false)
+          setShowLanding(true)
+        }
+      } catch (error) {
+        console.error('Failed to delete session:', error)
+      }
+    })()
+  }, [currentChatId, refreshChatHistory])
 
   const handleBackToHome = useCallback(() => {
     setShowLanding(true)
@@ -230,15 +316,15 @@ export default function Home() {
     setCurrentChatId('')
     setInsights([])
     setShowInsights(false)
+    setShowSystemInsights(false)
   }, [])
 
   if (showLanding) {
     return (
-      <Landing 
+      <Landing
         onStart={() => {
-          setShowLanding(false)
-          setCurrentChatId(Date.now().toString())
-        }} 
+          void createNewSession()
+        }}
         onFileUpload={handleFileUpload}
         recentChats={chatHistory.slice(0, 3)}
         onLoadChat={handleLoadChat}
@@ -256,11 +342,11 @@ export default function Home() {
         onFileUpload={handleFileUpload}
         onSelectDocument={(name) => {
           setActiveDocument(name)
-          const doc = documents.find(d => d.name === name)
-          if (doc) {
-            const docInsights = generateInsights(doc)
+          const document = documents.find(item => item.name === name)
+          if (document) {
+            const docInsights = generateInsights(document)
             setInsights(docInsights)
-            if (docInsights.length > 0) setShowInsights(true)
+            setShowInsights(docInsights.length > 0)
           }
         }}
         onRemoveDocument={handleRemoveDocument}
@@ -268,8 +354,12 @@ export default function Home() {
         onLoadChat={handleLoadChat}
         onDeleteChat={handleDeleteChat}
         onBackToHome={handleBackToHome}
+        onOpenSystemInsights={() => {
+          setShowSystemInsights(true)
+          void refreshSystemInsights()
+        }}
       />
-      
+
       <Chat
         messages={messages}
         isLoading={isLoading}
@@ -279,9 +369,19 @@ export default function Home() {
       />
 
       {showInsights && insights.length > 0 && (
-        <InsightsPanel 
+        <InsightsPanel
           insights={insights}
           onClose={() => setShowInsights(false)}
+        />
+      )}
+
+      {showSystemInsights && (
+        <SystemInsightsPanel
+          stats={systemStats}
+          recentEval={recentEval}
+          onRefresh={refreshSystemInsights}
+          onRunEval={runEvalSuite}
+          onClose={() => setShowSystemInsights(false)}
         />
       )}
     </div>

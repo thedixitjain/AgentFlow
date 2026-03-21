@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { embeddingService } from './embeddings.js';
 import { logger } from '../utils/logger.js';
+import { loadJsonFile, saveJsonFile } from './persistence.js';
 
 export interface VectorDocument {
   id: string;
@@ -21,11 +22,51 @@ export interface SearchResult {
   score: number;
 }
 
-class VectorStore {
-  private documents: Map<string, VectorDocument> = new Map();
-  private documentIndex: Map<string, string[]> = new Map(); // documentId -> vectorIds
+interface PersistedVectorDocument extends Omit<VectorDocument, 'metadata'> {
+  metadata: Omit<VectorDocument['metadata'], 'createdAt'> & {
+    createdAt: string;
+  };
+}
 
-  // Add a document chunk to the store
+class VectorStore {
+  private documents: Map<string, VectorDocument>;
+  private documentIndex: Map<string, string[]>;
+
+  constructor() {
+    const stored = loadJsonFile<PersistedVectorDocument[]>('vectors.json', []);
+    this.documents = new Map();
+    this.documentIndex = new Map();
+
+    stored.forEach(document => {
+      const restored: VectorDocument = {
+        ...document,
+        metadata: {
+          source: document.metadata.source as string,
+          type: document.metadata.type as string,
+          ...document.metadata,
+          createdAt: new Date(document.metadata.createdAt),
+        },
+      };
+
+      this.documents.set(restored.id, restored);
+      const existing = this.documentIndex.get(restored.documentId) || [];
+      existing.push(restored.id);
+      this.documentIndex.set(restored.documentId, existing);
+    });
+  }
+
+  private persist(): void {
+    const serialized: PersistedVectorDocument[] = Array.from(this.documents.values()).map(document => ({
+      ...document,
+      metadata: {
+        ...document.metadata,
+        createdAt: document.metadata.createdAt.toISOString(),
+      },
+    }));
+
+    saveJsonFile('vectors.json', serialized);
+  }
+
   async addDocument(
     documentId: string,
     content: string,
@@ -33,7 +74,7 @@ class VectorStore {
     metadata: Record<string, unknown>
   ): Promise<VectorDocument> {
     const embedding = await embeddingService.generateEmbedding(content);
-    
+
     const vectorDoc: VectorDocument = {
       id: uuidv4(),
       documentId,
@@ -49,15 +90,15 @@ class VectorStore {
     };
 
     this.documents.set(vectorDoc.id, vectorDoc);
-    
-    // Update index
+
     const existing = this.documentIndex.get(documentId) || [];
     existing.push(vectorDoc.id);
     this.documentIndex.set(documentId, existing);
+    this.persist();
 
-    logger.debug('Added vector document', { 
-      vectorId: vectorDoc.id, 
-      documentId, 
+    logger.debug('Added vector document', {
+      vectorId: vectorDoc.id,
+      documentId,
       chunkIndex,
       contentLength: content.length,
     });
@@ -65,14 +106,15 @@ class VectorStore {
     return vectorDoc;
   }
 
-  // Add multiple chunks from a document
   async addDocumentChunks(
     documentId: string,
     chunks: string[],
     metadata: Record<string, unknown>
   ): Promise<VectorDocument[]> {
+    this.deleteDocument(documentId);
+
     const vectorDocs: VectorDocument[] = [];
-    
+
     for (let i = 0; i < chunks.length; i++) {
       const doc = await this.addDocument(documentId, chunks[i], i, metadata);
       vectorDocs.push(doc);
@@ -86,25 +128,21 @@ class VectorStore {
     return vectorDocs;
   }
 
-  // Search for similar documents
   async search(
     query: string,
     topK: number = 5,
     documentId?: string
   ): Promise<SearchResult[]> {
     const queryEmbedding = await embeddingService.generateEmbedding(query);
-    
     const results: SearchResult[] = [];
-    
+
     this.documents.forEach((doc) => {
-      // Filter by documentId if specified
       if (documentId && doc.documentId !== documentId) return;
-      
+
       const score = embeddingService.cosineSimilarity(queryEmbedding, doc.embedding);
       results.push({ document: doc, score });
     });
 
-    // Sort by score descending and take top K
     results.sort((a, b) => b.score - a.score);
     const topResults = results.slice(0, topK);
 
@@ -117,7 +155,6 @@ class VectorStore {
     return topResults;
   }
 
-  // Get all chunks for a document
   getDocumentChunks(documentId: string): VectorDocument[] {
     const vectorIds = this.documentIndex.get(documentId) || [];
     return vectorIds
@@ -126,22 +163,23 @@ class VectorStore {
       .sort((a, b) => a.chunkIndex - b.chunkIndex);
   }
 
-  // Delete all chunks for a document
   deleteDocument(documentId: string): number {
     const vectorIds = this.documentIndex.get(documentId) || [];
-    
+
     vectorIds.forEach(id => this.documents.delete(id));
     this.documentIndex.delete(documentId);
 
-    logger.info('Deleted document from vector store', {
-      documentId,
-      chunksDeleted: vectorIds.length,
-    });
+    if (vectorIds.length > 0) {
+      this.persist();
+      logger.info('Deleted document from vector store', {
+        documentId,
+        chunksDeleted: vectorIds.length,
+      });
+    }
 
     return vectorIds.length;
   }
 
-  // Get store statistics
   getStats(): {
     totalDocuments: number;
     totalChunks: number;
@@ -149,7 +187,7 @@ class VectorStore {
   } {
     const totalChunks = this.documents.size;
     const totalDocuments = this.documentIndex.size;
-    
+
     return {
       totalDocuments,
       totalChunks,
@@ -157,10 +195,10 @@ class VectorStore {
     };
   }
 
-  // Clear all documents
   clear(): void {
     this.documents.clear();
     this.documentIndex.clear();
+    this.persist();
     logger.info('Vector store cleared');
   }
 }

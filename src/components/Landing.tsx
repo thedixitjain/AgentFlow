@@ -274,18 +274,18 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
       {/* Hero */}
       <main className="px-4 md:px-6 pt-12 md:pt-20 pb-12 md:pb-16 max-w-4xl mx-auto text-center">
         <p className="text-[#10a37f] text-xs md:text-sm font-medium mb-3 md:mb-4 uppercase tracking-wide">
-          Multi-Agent AI System with RAG
+          Business Document Copilot with Multi-Agent RAG
         </p>
         
         <h1 className="text-3xl md:text-5xl font-semibold mb-4 md:mb-6 leading-tight">
-          Analyze documents with
+          Analyze business documents with
           <br className="hidden md:block" />
           <span className="md:hidden"> </span>intelligent agents
         </h1>
         
         <p className="text-[#b4b4b4] text-base md:text-lg mb-8 md:mb-12 max-w-xl mx-auto leading-relaxed">
-          Upload CSV, Excel, PDF, or text files. Ask questions in plain English. 
-          Get instant insights powered by specialized AI agents.
+          Upload sales reports, finance spreadsheets, PDF briefs, or plain text updates.
+          Ask questions in plain English and get grounded answers, summaries, and operational insights.
         </p>
 
         {/* CTA Buttons */}
@@ -337,7 +337,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             <FileText className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
             <h3 className="font-semibold mb-2 text-[#ececec]">Document Analysis</h3>
             <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Upload any document and ask questions. Get summaries, find specific info, extract insights.
+              Upload revenue sheets, ops updates, and business reports. Get summaries, metrics, and grounded answers.
             </p>
           </div>
           
@@ -345,7 +345,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             <BarChart2 className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
             <h3 className="font-semibold mb-2 text-[#ececec]">RAG-Powered Search</h3>
             <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Semantic search finds relevant information. Answers cite sources with relevance scores.
+              Semantic retrieval finds the right evidence from your documents and cites it with relevance scores.
             </p>
           </div>
           
@@ -353,7 +353,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             <Zap className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
             <h3 className="font-semibold mb-2 text-[#ececec]">Multi-Agent System</h3>
             <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Specialized agents handle different tasks. Orchestrator routes queries for optimal results.
+              Specialized agents route between analysis, summaries, verification, and retrieval for business questions.
             </p>
           </div>
         </div>
@@ -362,7 +362,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
         <div id="how-it-works" className="mb-16 md:mb-20">
           <h2 className="text-xl md:text-2xl font-semibold mb-3 text-[#ececec]">How it Works</h2>
           <p className="text-[#b4b4b4] mb-8 max-w-lg mx-auto">
-            AgentFlow uses a multi-agent architecture with RAG (Retrieval-Augmented Generation) for accurate, source-cited answers.
+            AgentFlow uses a multi-agent architecture with RAG for accurate, source-cited analysis across sales and operations documents.
           </p>
           
           <div className="grid md:grid-cols-4 gap-4 text-left">

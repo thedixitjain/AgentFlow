@@ -1,4 +1,5 @@
 export interface DocumentFile {
+  id?: string
   name: string
   type: 'pdf' | 'csv' | 'xlsx' | 'txt' | 'docx' | 'pptx'
   size: number

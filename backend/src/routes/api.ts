@@ -8,15 +8,21 @@ import { sessionService } from '../services/session.js';
 import { llmService } from '../services/llm.js';
 import { ragService } from '../services/rag.js';
 import { vectorStore } from '../services/vectorStore.js';
+import { telemetryService } from '../services/telemetry.js';
+import { evalService } from '../services/evals.js';
 import { logger } from '../utils/logger.js';
 import { register } from '../utils/metrics.js';
-import type { Document, Message, DocumentType } from '../types/index.js';
+import type { Document, DocumentType, Message } from '../types/index.js';
 
 const router = Router();
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
+
+function getWorkspaceId(req: Request): string {
+  return req.header('x-workspace-id')?.trim() || 'local-workspace';
+}
 
 // Health check
 router.get('/health', (req: Request, res: Response) => {
@@ -38,9 +44,17 @@ router.get('/metrics', async (req: Request, res: Response) => {
 });
 
 // Session endpoints
+router.get('/sessions', (req: Request, res: Response) => {
+  res.json(sessionService.getAllSessions(getWorkspaceId(req)));
+});
+
+router.get('/telemetry', (req: Request, res: Response) => {
+  res.json(telemetryService.getSummary());
+});
+
 router.post('/sessions', (req: Request, res: Response) => {
   try {
-    const session = sessionService.createSession(req.body.name);
+    const session = sessionService.createSession(getWorkspaceId(req), req.body.name);
     res.status(201).json(session);
   } catch (error) {
     logger.error('Failed to create session', { error });
@@ -49,7 +63,7 @@ router.post('/sessions', (req: Request, res: Response) => {
 });
 
 router.get('/sessions/:id', (req: Request, res: Response) => {
-  const session = sessionService.getSession(req.params.id);
+  const session = sessionService.getSession(req.params.id, getWorkspaceId(req));
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
@@ -57,10 +71,77 @@ router.get('/sessions/:id', (req: Request, res: Response) => {
 });
 
 router.delete('/sessions/:id', (req: Request, res: Response) => {
+  const session = sessionService.getSession(req.params.id, getWorkspaceId(req));
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
   const deleted = sessionService.deleteSession(req.params.id);
   if (!deleted) {
     return res.status(404).json({ error: 'Session not found' });
   }
+  res.status(204).send();
+});
+
+router.post('/sessions/:sessionId/documents/parsed', (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const session = sessionService.getSession(sessionId, getWorkspaceId(req));
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const { name, type, size, content, data, columns } = req.body as Partial<Document>;
+
+    if (!name || !type || !size) {
+      return res.status(400).json({ error: 'Document name, type, and size are required' });
+    }
+
+    const normalizedType = type as DocumentType;
+    const document: Document = {
+      id: uuidv4(),
+      name,
+      type: normalizedType,
+      size,
+      content,
+      data,
+      columns,
+      metadata: {
+        uploadedAt: new Date(),
+        rowCount: Array.isArray(data) ? data.length : undefined,
+        wordCount: typeof content === 'string' ? content.split(/\s+/).filter(word => word).length : undefined,
+      },
+    };
+
+    sessionService.addDocument(sessionId, document);
+
+    logger.info('Parsed document added to session', {
+      sessionId,
+      documentId: document.id,
+      type: document.type,
+      size: document.size,
+    });
+
+    res.status(201).json(document);
+  } catch (error) {
+    logger.error('Parsed document save failed', { error });
+    res.status(500).json({ error: 'Failed to save document' });
+  }
+});
+
+router.delete('/sessions/:sessionId/documents/:documentId', (req: Request, res: Response) => {
+  const { sessionId, documentId } = req.params;
+  const session = sessionService.getSession(sessionId, getWorkspaceId(req));
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const deleted = sessionService.deleteDocument(sessionId, documentId);
+  if (!deleted) {
+    return res.status(404).json({ error: 'Document not found' });
+  }
+
+  vectorStore.deleteDocument(documentId);
   res.status(204).send();
 });
 
@@ -74,12 +155,12 @@ router.post('/sessions/:sessionId/documents', upload.single('file'), async (req:
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const session = sessionService.getSession(sessionId);
+    const session = sessionService.getSession(sessionId, getWorkspaceId(req));
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    const ext = file.originalname.split('.').pop()?.toLowerCase() as DocumentType;
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
     let document: Document;
 
     if (ext === 'csv') {
@@ -173,7 +254,7 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const session = sessionService.getSession(sessionId);
+    const session = sessionService.getSession(sessionId, getWorkspaceId(req));
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -192,6 +273,12 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
       ? sessionService.getDocument(sessionId, documentId)
       : session.documents[session.documents.length - 1];
 
+    if (document && !document.metadata.indexed) {
+      await ragService.indexSessionDocument(sessionId, document);
+      document.metadata.indexed = true;
+      document.metadata.processedAt = new Date();
+    }
+
     // Get conversation history
     const history = session.messages.slice(-10).map(m => ({
       role: m.role,
@@ -208,6 +295,7 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
       content: result.response,
       agentType: result.agentUsed as any,
       timestamp: new Date(),
+      sources: result.sources,
       metadata: {
         tokensUsed: result.tokensUsed,
         responseTime: 0,
@@ -233,7 +321,11 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
     const { sessionId } = req.params;
     const { message, documentId } = req.body;
 
-    const session = sessionService.getSession(sessionId);
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const session = sessionService.getSession(sessionId, getWorkspaceId(req));
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -242,9 +334,23 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: 'user',
+      content: message,
+      timestamp: new Date(),
+    };
+    sessionService.addMessage(sessionId, userMessage);
+
     const document = documentId 
       ? sessionService.getDocument(sessionId, documentId)
       : session.documents[session.documents.length - 1];
+
+    if (document && !document.metadata.indexed) {
+      await ragService.indexSessionDocument(sessionId, document);
+      document.metadata.indexed = true;
+      document.metadata.processedAt = new Date();
+    }
 
     const history = session.messages.slice(-10).map(m => ({
       role: m.role,
@@ -253,6 +359,20 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
 
     const result = await orchestrator.handleMessage(message, document || undefined, history);
 
+    const assistantMessage: Message = {
+      id: uuidv4(),
+      role: 'assistant',
+      content: result.response,
+      agentType: result.agentUsed as any,
+      timestamp: new Date(),
+      sources: result.sources,
+      metadata: {
+        tokensUsed: result.tokensUsed,
+        responseTime: 0,
+      },
+    };
+    sessionService.addMessage(sessionId, assistantMessage);
+
     // Stream the response
     const words = result.response.split(' ');
     for (const word of words) {
@@ -260,7 +380,11 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
       await new Promise(resolve => setTimeout(resolve, 20));
     }
 
-    res.write(`data: ${JSON.stringify({ done: true, agentUsed: result.agentUsed })}\n\n`);
+    if (result.sources && result.sources.length > 0) {
+      res.write(`data: ${JSON.stringify({ sources: result.sources })}\n\n`);
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true, agentUsed: result.agentUsed, messageId: assistantMessage.id })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (error) {
@@ -294,9 +418,11 @@ router.get('/stats', (req: Request, res: Response) => {
   const queue = orchestrator.getQueueStatus();
   const budget = llmService.getBudgetStatus();
   const ragStats = ragService.getStats();
+  const telemetry = telemetryService.getSummary();
+  const latestEval = evalService.listRuns(1)[0] || null;
 
   res.json({
-    sessions: sessionService.getSessionCount(),
+    sessions: sessionService.getAllSessions(getWorkspaceId(req)).length,
     agents: {
       total: agentStates.length,
       active: agentStates.filter(a => a.status === 'processing').length,
@@ -305,6 +431,8 @@ router.get('/stats', (req: Request, res: Response) => {
     tasks: queue,
     budget,
     rag: ragStats,
+    telemetry,
+    latestEval,
     uptime: process.uptime(),
     memory: process.memoryUsage(),
   });
@@ -377,6 +505,32 @@ router.post('/rag/search', async (req: Request, res: Response) => {
 router.get('/rag/stats', (req: Request, res: Response) => {
   const stats = ragService.getStats();
   res.json(stats);
+});
+
+router.get('/evals/suites', (req: Request, res: Response) => {
+  res.json({
+    suites: evalService.listSuites(),
+  });
+});
+
+router.get('/evals/runs', (req: Request, res: Response) => {
+  res.json({
+    runs: evalService.listRuns(),
+  });
+});
+
+router.post('/evals/run', async (req: Request, res: Response) => {
+  try {
+    const suiteId = typeof req.body?.suiteId === 'string'
+      ? req.body.suiteId
+      : 'baseline-document-qa';
+
+    const run = await evalService.runSuite(suiteId);
+    res.json(run);
+  } catch (error) {
+    logger.error('Eval run failed', { error });
+    res.status(500).json({ error: 'Failed to run eval suite' });
+  }
 });
 
 export default router;

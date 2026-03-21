@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { rag } from '@/lib/rag'
 
 interface ChatRequest {
@@ -18,27 +19,119 @@ interface ChatRequest {
 
 export const runtime = 'nodejs'
 
+function formatClientError(message: string): string {
+  if (/429|quota|rate limit/i.test(message)) {
+    return 'The configured AI provider is rate limited or over quota. Update billing or switch to a fresh API key and retry.'
+  }
+
+  if (/403|api key|unauthorized|permission|authentication/i.test(message)) {
+    return 'The configured AI API key is invalid or does not have access to the requested model.'
+  }
+
+  return 'The AI request failed. Check the server logs for the full provider error.'
+}
+
+function buildUserPrompt(systemPrompt: string, contextBlock: string, message: string): string {
+  const questionBlock = contextBlock ? `${contextBlock}User question: ${message}` : message
+  return `${systemPrompt}\n\n${questionBlock}`
+}
+
+async function streamWithGroq(
+  groqApiKey: string,
+  history: ChatRequest['history'],
+  prompt: string,
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder
+) {
+  const groq = new Groq({ apiKey: groqApiKey })
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0.2,
+    max_tokens: 1024,
+    stream: true,
+    messages: [
+      ...history.slice(-6).map(entry => ({
+        role: entry.role as 'user' | 'assistant',
+        content: entry.content,
+      })),
+      { role: 'user' as const, content: prompt },
+    ],
+  })
+
+  for await (const chunk of completion) {
+    const text = chunk.choices[0]?.delta?.content || ''
+    if (text) {
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`)
+      )
+    }
+  }
+}
+
+async function streamWithGemini(
+  geminiApiKey: string,
+  history: ChatRequest['history'],
+  prompt: string,
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder
+) {
+  const genAI = new GoogleGenerativeAI(geminiApiKey)
+  const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+  const mapped = history.slice(-6).map(entry => ({
+    role: entry.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: entry.content }],
+  }))
+  const chatHistory = mapped.findIndex(entry => entry.role === 'user') >= 0
+    ? mapped.slice(mapped.findIndex(entry => entry.role === 'user'))
+    : []
+
+  const modelErrors: string[] = []
+
+  for (const modelName of modelNames) {
+    const model = genAI.getGenerativeModel({ model: modelName })
+    const chat = model.startChat({
+      history: chatHistory,
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+    })
+
+    try {
+      const result = await chat.sendMessageStream(prompt)
+      for await (const chunk of result.stream) {
+        const text = chunk.text()
+        if (text) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`)
+          )
+        }
+      }
+      return
+    } catch (error) {
+      modelErrors.push(error instanceof Error ? error.message : `Gemini model ${modelName} failed`)
+    }
+  }
+
+  const quotaError = modelErrors.find(error => /quota|429/i.test(error))
+  throw new Error(quotaError || modelErrors[modelErrors.length - 1] || 'Gemini request failed')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json()
     const { message, document, history, mode } = body
 
-    const apiKey = process.env.GEMINI_API_KEY
+    const groqApiKey = process.env.GROQ_API_KEY
+    const geminiApiKey = process.env.GEMINI_API_KEY
 
-    if (!apiKey) {
+    if (!groqApiKey && !geminiApiKey) {
       return NextResponse.json(
-        { error: 'Gemini API key not configured' },
+        { error: 'No AI provider configured. Set GROQ_API_KEY or GEMINI_API_KEY.' },
         { status: 500 }
       )
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const modelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
-
-    let systemPrompt = ''
     let ragSources: Array<{ content: string; score: number }> = []
-
     let contextBlock = ''
+
     if (mode === 'document' && document) {
       const docId = document.id || document.name
 
@@ -55,78 +148,53 @@ export async function POST(request: NextRequest) {
       let context = rag.buildContext(ragSources)
 
       if (document.data && document.columns && document.data.length <= 100 && ragSources.length > 0 && ragSources[0].score < 0.3) {
-        const formatVal = (v: unknown): string => {
-          if (v === null || v === undefined) return ''
-          if (typeof v === 'number' && v > 10000 && v < 100000) {
-            const d = new Date((v - 25569) * 86400 * 1000)
-            if (!isNaN(d.getTime())) return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        const formatVal = (value: unknown): string => {
+          if (value === null || value === undefined) return ''
+          if (typeof value === 'number' && value > 10000 && value < 100000) {
+            const date = new Date((value - 25569) * 86400 * 1000)
+            if (!isNaN(date.getTime())) {
+              return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            }
           }
-          return String(v)
+          return String(value)
         }
-        const fullText = document.data.slice(0, 100).map((row, i) =>
-          `Row ${i + 1}: ${document!.columns!.map(c => `${c}: ${formatVal(row[c])}`).join(', ')}`
+
+        const fullText = document.data.slice(0, 100).map((row, index) =>
+          `Row ${index + 1}: ${document.columns!.map(column => `${column}: ${formatVal(row[column])}`).join(', ')}`
         ).join('\n')
+
         context = `FULL DATA (${document.data.length} rows):\n${fullText}\n\n---\nRAG matches:\n${context}`
       }
+
       contextBlock = `\n\nCONTEXT FROM DOCUMENT:\n${context}\n\n`
     }
 
-    systemPrompt = `You are AgentFlow, a senior AI analyst. Be concise, direct, and professional. Answer ONLY what was asked. Be succinct. Extract exact information from context. If info isn't in context, say "Not found in document".`
-
-    // Gemini requires first message to be from 'user' - trim any leading assistant messages
-    const mapped = history.slice(-6).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }))
-    const chatHistory = mapped.findIndex(m => m.role === 'user') >= 0
-      ? mapped.slice(mapped.findIndex(m => m.role === 'user'))
-      : []
-
-    const userMessage = contextBlock ? `${contextBlock}User question: ${message}` : message
-
+    const systemPrompt = 'You are AgentFlow, a senior AI analyst. Be concise, direct, and professional. Answer only what was asked. Extract exact information from the provided context. If the answer is not in the document context, say "Not found in document".'
+    const prompt = buildUserPrompt(systemPrompt, contextBlock, message)
     const encoder = new TextEncoder()
 
     const stream = new ReadableStream({
       async start(controller) {
-        const runWithModel = async (modelIndex: number): Promise<boolean> => {
-          const model = genAI.getGenerativeModel({ model: modelNames[modelIndex] })
-          const chat = model.startChat({
-            history: chatHistory,
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
-            systemInstruction: systemPrompt,
-          })
-          try {
-            const result = await chat.sendMessageStream(userMessage)
-            for await (const chunk of result.stream) {
-              const text = chunk.text()
-              if (text) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`))
-              }
-            }
-            return true
-          } catch {
-            return false
-          }
-        }
-
         try {
-          let success = false
-          for (let i = 0; i < modelNames.length; i++) {
-            success = await runWithModel(i)
-            if (success) break
+          if (groqApiKey) {
+            await streamWithGroq(groqApiKey, history, prompt, controller, encoder)
+          } else if (geminiApiKey) {
+            await streamWithGemini(geminiApiKey, history, prompt, controller, encoder)
           }
-          if (!success) throw new Error('All Gemini models failed')
 
           if (ragSources.length > 0) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ sources: ragSources.map(s => ({ content: s.content.slice(0, 200) + (s.content.length > 200 ? '...' : ''), score: s.score })) })}\n\n`))
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ sources: ragSources.map(source => ({ content: source.content.slice(0, 200) + (source.content.length > 200 ? '...' : ''), score: source.score })) })}\n\n`)
+            )
           }
+
           controller.enqueue(encoder.encode('data: [DONE]\n\n'))
           controller.close()
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : 'Stream error'
-          console.error('Gemini stream error:', err)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Stream error'
+          console.error('AI stream error:', error)
           try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`))
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: formatClientError(message) })}\n\n`))
           } finally {
             controller.close()
           }
@@ -138,7 +206,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     })
   } catch (error) {

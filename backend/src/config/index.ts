@@ -1,5 +1,8 @@
 import dotenv from 'dotenv';
+import { resolve } from 'path';
+
 dotenv.config();
+dotenv.config({ path: resolve(process.cwd(), '../.env.local'), override: false });
 
 export const config = {
   port: parseInt(process.env.PORT || '4000', 10),
