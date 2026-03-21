@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Server-side proxy → Render API. Browser calls same-origin `/agentflow-api/*` (no CORS).
- * Set BACKEND_URL on Vercel (e.g. https://agentflow-fg2n.onrender.com — no /api suffix).
+ * Set BACKEND_URL on Vercel (e.g. https://agentflow-fg2n.onrender.com, no /api suffix).
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

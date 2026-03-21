@@ -291,8 +291,11 @@ export function Sidebar({
         {/* Chat History */}
         {chatHistory.length > 0 && (
           <div>
-            <p className="font-display text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2 px-1">
+            <p className="font-display text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-1 px-1">
               Sessions
+            </p>
+            <p className="text-[9px] text-zinc-600 mb-2 px-1 leading-relaxed">
+              Only for this browser. Other visitors get their own list (not one shared public feed).
             </p>
             <div className="space-y-1">
               {chatHistory.slice(0, 10).map((chat) => (

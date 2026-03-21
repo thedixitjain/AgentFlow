@@ -414,7 +414,7 @@ export function Landing({
           </h1>
 
           <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
-            Upload sales, finance, or ops files—then ask in plain English. Grounded answers, cited
+            Upload sales, finance, or ops files, then ask in plain English. Grounded answers, cited
             retrieval, and a routing layer built for portfolio-grade demos.
           </p>
 
@@ -471,7 +471,7 @@ export function Landing({
             API base:{' '}
             <span className="text-zinc-400 font-mono text-[10px] break-all">{configuredApiUrl}</span>
             . Production: use <span className="text-zinc-400">NEXT_PUBLIC_API_URL=/agentflow-api</span> on
-            Vercel (proxied to Render — avoids CORS). See repo README.
+            Vercel (proxied to Render to avoid CORS). See repo README.
           </p>
         </section>
 
@@ -513,7 +513,7 @@ export function Landing({
           </div>
         </section>
 
-        {/* Product preview (visitors) — optional narrated video replaces GIF when configured in deploy */}
+        {/* Product preview (visitors): optional narrated video replaces GIF when configured in deploy */}
         <section id="demo" className="mb-24 md:mb-32 scroll-mt-28">
           <div className="text-center max-w-2xl mx-auto mb-10 px-2">
             <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3">
@@ -524,7 +524,7 @@ export function Landing({
                 <>Short walkthrough of the product.</>
               ) : (
                 <>
-                  Preview of the workspace below — upload, chat, and answers grounded in your
+                  Preview of the workspace below: upload, chat, and answers grounded in your
                   documents. Use <span className="text-zinc-300">Open workspace</span> above to try it
                   live.
                 </>
@@ -569,7 +569,7 @@ export function Landing({
                     </li>
                     <li className="flex gap-3">
                       <span className="text-[#10a37f] font-mono text-xs mt-0.5">02</span>
-                      <span>Ask questions in natural language — the backend retrieves relevant chunks, then replies.</span>
+                      <span>Ask questions in natural language; the backend retrieves relevant chunks, then replies.</span>
                     </li>
                     <li className="flex gap-3">
                       <span className="text-[#10a37f] font-mono text-xs mt-0.5">03</span>
@@ -578,7 +578,7 @@ export function Landing({
                   </ul>
                   <p className="text-xs text-zinc-600 mt-6 leading-relaxed border-t border-white/[0.06] pt-5">
                     Shipped on purpose: a silent preview of the real UI. Replacing it with a narrated
-                    video is optional — steps are in the project repository for you when you want them.
+                    video is optional; steps are in the project repository for you when you want them.
                   </p>
                 </div>
               </div>
@@ -593,7 +593,7 @@ export function Landing({
           </h2>
           <p className="text-zinc-400 text-center max-w-2xl mx-auto mb-10">
             Next.js frontend, Express orchestration, embeddings + vector search, file-backed
-            persistence, telemetry and eval hooks—documented for interviews and code review.
+            persistence, telemetry and eval hooks, documented for interviews and code review.
           </p>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -611,7 +611,7 @@ export function Landing({
               {
                 icon: <Search className="w-5 h-5" />,
                 title: 'Retrieval',
-                body: 'Chunking, embeddings, cosine similarity—swap for pgvector later.',
+                body: 'Chunking, embeddings, cosine similarity; swap for pgvector later.',
               },
               {
                 icon: <Database className="w-5 h-5" />,
@@ -687,7 +687,7 @@ export function Landing({
               <FileText className="w-9 h-9 mb-5 text-[#10a37f]" />
               <h3 className="font-display font-semibold text-lg text-white mb-2">Document analysis</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Revenue sheets, briefs, and ops updates—summaries, metrics, and grounded Q&A.
+                Revenue sheets, briefs, and ops updates: summaries, metrics, and grounded Q&A.
               </p>
             </div>
             <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
@@ -701,7 +701,7 @@ export function Landing({
               <Zap className="w-9 h-9 mb-5 text-[#10a37f]" />
               <h3 className="font-display font-semibold text-lg text-white mb-2">Multi-agent</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Specialized agents for analysis, verification, and summarization—routed for you.
+                Specialized agents for analysis, verification, and summarization, routed for you.
               </p>
             </div>
           </div>
@@ -713,7 +713,7 @@ export function Landing({
             How it works
           </h2>
           <p className="text-zinc-400 text-center max-w-lg mx-auto mb-12">
-            End-to-end path from upload to grounded answer—same mental model you’d use in a system
+            End-to-end path from upload to grounded answer; same mental model you’d use in a system
             design interview.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -746,7 +746,7 @@ export function Landing({
             Agent roster
           </h2>
           <p className="text-zinc-400 text-center max-w-lg mx-auto mb-10">
-            Each role is explicit in the UI and in routing—easy to extend with new tools or policies.
+            Each role is explicit in the UI and in routing, easy to extend with new tools or policies.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[

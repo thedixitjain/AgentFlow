@@ -105,7 +105,7 @@ The backend can be deployed on Render as a Docker service.
 
 **Data directory:** The backend tries `DATA_DIR` (if set), then `/app/data` under the app working directory, then a temp folder. So even if `DATA_DIR=/var/data` is set but that path is not writable (e.g. no disk attached), the service still starts and uses `/app/data`.
 
-1. **Recommended for free tier / no disk:** Remove `DATA_DIR` from Render **Environment** (or leave it—fallback still works). Data lives under `/app/data` in the container (ephemeral on free tier).
+1. **Recommended for free tier / no disk:** Remove `DATA_DIR` from Render **Environment** (or leave it; fallback still works). Data lives under `/app/data` in the container (ephemeral on free tier).
 
 2. **With persistent disk** (data survives redeploys):
    - Render Dashboard → Disks → Add Disk, mount path `/var/data`
@@ -116,7 +116,7 @@ Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL; comma-separ
 
 **Custom domain (e.g. `agentflow.thedixitjain.com` on Vercel):** see [docs/CUSTOM_DOMAIN.md](docs/CUSTOM_DOMAIN.md).
 
-### Frontend (Vercel) — connect to Render without CORS issues
+### Frontend (Vercel): connect to Render without CORS issues
 
 The browser should **not** call `https://*.onrender.com` directly (CORS is easy to misconfigure). This repo **proxies** `/agentflow-api` → your Render `/api` (see `next.config.js`).
 

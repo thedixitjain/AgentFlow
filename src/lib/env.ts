@@ -6,7 +6,7 @@ export function getPublicApiUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 }
 
-/** True when production site still targets localhost — API calls will fail */
+/** True when production site still targets localhost; API calls will fail */
 export function isProductionApiLikelyMisconfigured(): boolean {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname

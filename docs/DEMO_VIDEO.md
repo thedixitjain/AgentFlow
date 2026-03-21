@@ -1,6 +1,6 @@
 # Demo video playbook
 
-Use this to record a **short, professional walkthrough** (2–4 minutes) that visitors can watch before trying the app.
+Use this to record a **short, professional walkthrough** (2-4 minutes) that visitors can watch before trying the app.
 
 ## What to publish
 
@@ -22,12 +22,12 @@ If the variable is **unset**, the site shows a fallback: animated preview (`/med
 
 | Time | Shot | Say |
 |------|------|-----|
-| 0:00–0:20 | Landing hero | “AgentFlow is a multi-agent RAG copilot for business documents—sales, finance, ops.” |
-| 0:20–0:45 | Upload or “Try sample data” | “You can upload CSV, Excel, PDF, or text—or start from the built-in sample.” |
-| 0:45–1:30 | Ask 2–3 questions | Show grounded answers; mention RAG/sources if visible in the UI. |
-| 1:30–2:00 | System Insights (optional) | “The backend exposes telemetry and eval hooks—useful for demos and interviews.” |
-| 2:00–2:30 | Architecture one-liner | “Next.js frontend, Express backend, Groq-first LLM, file-backed sessions and vectors.” |
-| 2:30–end | CTA | “Repo link in the footer—try it yourself.” |
+| 0:00-0:20 | Landing hero | “AgentFlow is a multi-agent RAG copilot for business documents: sales, finance, ops.” |
+| 0:20-0:45 | Upload or “Try sample data” | “You can upload CSV, Excel, PDF, or text, or start from the built-in sample.” |
+| 0:45-1:30 | Ask 2-3 questions | Show grounded answers; mention RAG/sources if visible in the UI. |
+| 1:30-2:00 | System Insights (optional) | “The backend exposes telemetry and eval hooks, useful for demos and interviews.” |
+| 2:00-2:30 | Architecture one-liner | “Next.js frontend, Express backend, Groq-first LLM, file-backed sessions and vectors.” |
+| 2:30-end | CTA | “Repo link in the footer; try it yourself.” |
 
 ## Recording tips
 

@@ -27,7 +27,7 @@ interface ChatProps {
   onSendMessage: (message: string) => void
   hasDocument: boolean
   documentName?: string
-  /** Backend session id — shown so visitors understand state is persisted */
+  /** Backend session id, shown so visitors understand state is persisted */
   sessionId?: string
 }
 
@@ -118,7 +118,7 @@ export function Chat({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--chat-bg)] min-w-0">
-      {/* Explainer header — what this screen is */}
+      {/* Explainer header: what this screen is */}
       <header className="shrink-0 border-b border-white/[0.06] bg-zinc-950/80 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -153,7 +153,7 @@ export function Chat({
                 <>
                   <span className="font-medium text-zinc-200">Active document: </span>
                   <span className="text-zinc-400">{documentName}</span>
-                  <span className="text-zinc-500"> — answers can cite retrieved passages.</span>
+                  <span className="text-zinc-500">. Answers can cite retrieved passages.</span>
                 </>
               ) : (
                 <>
@@ -190,7 +190,7 @@ export function Chat({
               <ol className="space-y-3 mb-8 text-left">
                 {[
                   { n: '1', t: 'Add data', d: 'Upload or select a document in the left panel.' },
-                  { n: '2', t: 'Ask in English', d: 'Sales, finance, ops — same as you’d ask a colleague.' },
+                  { n: '2', t: 'Ask in English', d: 'Sales, finance, ops, same as you’d ask a colleague.' },
                   { n: '3', t: 'Read the reply', d: 'Expand “sources” when RAG cites chunks from your file.' },
                 ].map((row) => (
                   <li

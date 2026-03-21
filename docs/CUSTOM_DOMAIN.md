@@ -6,18 +6,18 @@ The Next.js app is on **Vercel** and the API is on **Render**.
 
 The repo proxies `/agentflow-api/*` → your Render `/api/*` via `next.config.js`. The **browser only talks to your Vercel domain**, so you do **not** rely on cross-origin requests to Render (which often fail until CORS is perfect).
 
-### Vercel — environment variables (Production)
+### Vercel: environment variables (Production)
 
 | Name | Value |
 |------|--------|
 | `NEXT_PUBLIC_API_URL` | `/agentflow-api` |
 | `BACKEND_URL` | `https://YOUR-SERVICE.onrender.com` (no `/api` suffix) |
 
-If you omit `BACKEND_URL`, the project defaults to the Render URL used in `next.config.js` — override it for your own fork.
+If you omit `BACKEND_URL`, the project defaults to the Render URL used in `next.config.js`; override it for your own fork.
 
 **Redeploy** after saving (required for `NEXT_PUBLIC_*`).
 
-### Render — CORS (optional when using proxy)
+### Render: CORS (optional when using proxy)
 
 With the proxy, browsers do not call Render directly, so CORS is less critical. You can still set:
 
@@ -41,7 +41,7 @@ Then **Render must** allow your Vercel origin in `CORS_ORIGIN` (exact URL, `http
 
 ---
 
-## 1. Vercel — connect the subdomain
+## 1. Vercel: connect the subdomain
 
 1. Project → **Settings** → **Domains** → add `agentflow.thedixitjain.com`.
 2. Add the **CNAME** at your DNS host that Vercel shows.

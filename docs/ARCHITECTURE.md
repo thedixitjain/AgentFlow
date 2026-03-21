@@ -1,4 +1,4 @@
-# AgentFlow — System Architecture
+# AgentFlow: System Architecture
 
 Production-oriented reference for how the product is structured, how data flows, and where to extend it.
 
@@ -84,7 +84,7 @@ Physical storage is **JSON files** (not Postgres) by design for the portfolio/de
 
 ## Workspace isolation
 
-Clients send a **workspace header** (see `api.ts`). The backend scopes session lists and operations so multi-tenant demos don’t leak data across “workspaces.” This is **not** full auth—pair with real identity for production.
+Clients send a **workspace header** (see `api.ts`). The backend scopes session lists and operations so multi-tenant demos don’t leak data across “workspaces.” This is **not** full auth; pair with real identity for production.
 
 ## Deployment topology
 

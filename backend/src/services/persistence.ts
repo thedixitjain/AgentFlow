@@ -40,7 +40,7 @@ function getDataDir(): string {
   if (process.env.DATA_DIR) {
     candidates.push(resolve(process.env.DATA_DIR));
   }
-  // 2) App directory — always created & writable in our Dockerfile (/app/data)
+  // 2) App directory: always created & writable in our Dockerfile (/app/data)
   candidates.push(cwdData);
   // 3) Last resort: OS temp (ephemeral)
   candidates.push(tmpFallback);
