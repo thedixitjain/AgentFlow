@@ -1,10 +1,30 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Upload, ArrowRight, FileText, BarChart2, Zap, Database, Sparkles, Bot, CheckCircle, Search, Menu, X } from 'lucide-react'
+import {
+  Upload,
+  ArrowRight,
+  FileText,
+  BarChart2,
+  Zap,
+  Database,
+  Sparkles,
+  Bot,
+  CheckCircle,
+  Search,
+  Menu,
+  X,
+  Play,
+  Layers,
+  Radio,
+  Server,
+  BookOpen,
+  ExternalLink,
+} from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 
 const SAMPLE_SALES_CSV = `Date,Product,Category,Sales,Revenue,Customer_ID,Region,Quantity
@@ -29,6 +49,12 @@ const SAMPLE_SALES_CSV = `Date,Product,Category,Sales,Revenue,Customer_ID,Region
 2023-02-09,Desk Lamp,Furniture,1,80,C019,East,1
 2023-02-10,Monitor,Electronics,1,300,C020,West,1`
 
+const DEMO_VIDEO_URL = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL
+const ARCHITECTURE_DOC =
+  'https://github.com/thedixitjain/AgentFlow/blob/main/docs/ARCHITECTURE.md'
+const DEMO_PLAYBOOK =
+  'https://github.com/thedixitjain/AgentFlow/blob/main/docs/DEMO_VIDEO.md'
+
 interface LandingProps {
   onStart: () => void
   onFileUpload: (file: DocumentFile) => void
@@ -43,7 +69,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
   const loadSampleData = useCallback(() => {
     setIsLoadingSample(true)
-    
+
     Papa.parse(SAMPLE_SALES_CSV, {
       header: true,
       complete: (results) => {
@@ -52,7 +78,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
           name: 'sales_data.csv',
           type: 'csv',
           size: SAMPLE_SALES_CSV.length,
-          data: data.filter(row => Object.values(row).some(v => v)),
+          data: data.filter((row) => Object.values(row).some((v) => v)),
           columns: results.meta.fields || [],
           uploadedAt: new Date(),
         })
@@ -61,139 +87,139 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
     })
   }, [onFileUpload])
 
-  const processFile = useCallback(async (file: File) => {
-    setIsUploading(true)
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    
-    try {
-      if (ext === 'csv') {
-        Papa.parse(file, {
-          header: true,
-          complete: (results) => {
-            const data = results.data as Record<string, unknown>[]
-            onFileUpload({
-              name: file.name,
-              type: 'csv',
-              size: file.size,
-              data: data.filter(row => Object.values(row).some(v => v)),
-              columns: results.meta.fields || [],
-              uploadedAt: new Date(),
-            })
-          },
-        })
-      } else if (ext === 'xlsx' || ext === 'xls') {
-        const buffer = await file.arrayBuffer()
-        const workbook = XLSX.read(buffer, { type: 'array' })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]
-        onFileUpload({
-          name: file.name,
-          type: 'xlsx',
-          size: file.size,
-          data,
-          columns: data.length > 0 ? Object.keys(data[0]) : [],
-          uploadedAt: new Date(),
-        })
-      } else if (ext === 'txt') {
-        const text = await file.text()
-        onFileUpload({
-          name: file.name,
-          type: 'txt',
-          size: file.size,
-          content: text,
-          uploadedAt: new Date(),
-        })
-      } else if (ext === 'pdf') {
-        // Parse PDF using API
-        const formData = new FormData()
-        formData.append('file', file)
-        
-        try {
-          const response = await fetch('/api/parse-pdf', {
-            method: 'POST',
-            body: formData,
+  const processFile = useCallback(
+    async (file: File) => {
+      setIsUploading(true)
+      const ext = file.name.split('.').pop()?.toLowerCase()
+
+      try {
+        if (ext === 'csv') {
+          Papa.parse(file, {
+            header: true,
+            complete: (results) => {
+              const data = results.data as Record<string, unknown>[]
+              onFileUpload({
+                name: file.name,
+                type: 'csv',
+                size: file.size,
+                data: data.filter((row) => Object.values(row).some((v) => v)),
+                columns: results.meta.fields || [],
+                uploadedAt: new Date(),
+              })
+            },
           })
-          
-          if (response.ok) {
-            const result = await response.json()
+        } else if (ext === 'xlsx' || ext === 'xls') {
+          const buffer = await file.arrayBuffer()
+          const workbook = XLSX.read(buffer, { type: 'array' })
+          const sheet = workbook.Sheets[workbook.SheetNames[0]]
+          const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]
+          onFileUpload({
+            name: file.name,
+            type: 'xlsx',
+            size: file.size,
+            data,
+            columns: data.length > 0 ? Object.keys(data[0]) : [],
+            uploadedAt: new Date(),
+          })
+        } else if (ext === 'txt') {
+          const text = await file.text()
+          onFileUpload({
+            name: file.name,
+            type: 'txt',
+            size: file.size,
+            content: text,
+            uploadedAt: new Date(),
+          })
+        } else if (ext === 'pdf') {
+          const formData = new FormData()
+          formData.append('file', file)
+
+          try {
+            const response = await fetch('/api/parse-pdf', {
+              method: 'POST',
+              body: formData,
+            })
+
+            if (response.ok) {
+              const result = await response.json()
+              onFileUpload({
+                name: file.name,
+                type: 'pdf',
+                size: file.size,
+                content: result.text || 'PDF content could not be extracted. Try uploading as TXT.',
+                uploadedAt: new Date(),
+              })
+            } else {
+              onFileUpload({
+                name: file.name,
+                type: 'pdf',
+                size: file.size,
+                content: 'PDF parsing failed. Try uploading as TXT for better results.',
+                uploadedAt: new Date(),
+              })
+            }
+          } catch {
             onFileUpload({
               name: file.name,
               type: 'pdf',
               size: file.size,
-              content: result.text || 'PDF content could not be extracted. Try uploading as TXT.',
-              uploadedAt: new Date(),
-            })
-          } else {
-            onFileUpload({
-              name: file.name,
-              type: 'pdf',
-              size: file.size,
-              content: 'PDF parsing failed. Try uploading as TXT for better results.',
+              content: 'PDF parsing error. Try uploading as TXT.',
               uploadedAt: new Date(),
             })
           }
-        } catch {
-          onFileUpload({
-            name: file.name,
-            type: 'pdf',
-            size: file.size,
-            content: 'PDF parsing error. Try uploading as TXT.',
-            uploadedAt: new Date(),
-          })
-        }
-      } else if (ext === 'docx' || ext === 'doc') {
-        // Parse DOCX using API
-        const formData = new FormData()
-        formData.append('file', file)
-        
-        try {
-          const response = await fetch('/api/parse-docx', {
-            method: 'POST',
-            body: formData,
-          })
-          
-          if (response.ok) {
-            const result = await response.json()
+        } else if (ext === 'docx' || ext === 'doc') {
+          const formData = new FormData()
+          formData.append('file', file)
+
+          try {
+            const response = await fetch('/api/parse-docx', {
+              method: 'POST',
+              body: formData,
+            })
+
+            if (response.ok) {
+              const result = await response.json()
+              onFileUpload({
+                name: file.name,
+                type: 'docx',
+                size: file.size,
+                content: result.text || 'DOCX content could not be extracted.',
+                uploadedAt: new Date(),
+              })
+            } else {
+              onFileUpload({
+                name: file.name,
+                type: 'docx',
+                size: file.size,
+                content: 'DOCX parsing failed.',
+                uploadedAt: new Date(),
+              })
+            }
+          } catch {
             onFileUpload({
               name: file.name,
               type: 'docx',
               size: file.size,
-              content: result.text || 'DOCX content could not be extracted.',
-              uploadedAt: new Date(),
-            })
-          } else {
-            onFileUpload({
-              name: file.name,
-              type: 'docx',
-              size: file.size,
-              content: 'DOCX parsing failed.',
+              content: 'DOCX parsing error.',
               uploadedAt: new Date(),
             })
           }
-        } catch {
+        } else if (ext === 'pptx' || ext === 'ppt') {
+          const text = await file.text().catch(() => '')
           onFileUpload({
             name: file.name,
-            type: 'docx',
+            type: 'pptx',
             size: file.size,
-            content: 'DOCX parsing error.',
+            content: text || 'PowerPoint uploaded. Text extraction limited.',
             uploadedAt: new Date(),
           })
         }
-      } else if (ext === 'pptx' || ext === 'ppt') {
-        // For PPTX, extract text client-side
-        const text = await file.text().catch(() => '')
-        onFileUpload({
-          name: file.name,
-          type: 'pptx',
-          size: file.size,
-          content: text || 'PowerPoint uploaded. Text extraction limited.',
-          uploadedAt: new Date(),
-        })
+      } finally {
+        setIsUploading(false)
       }
-    } finally {
-      setIsUploading(false)
-    }
-  }, [onFileUpload])
+    },
+    [onFileUpload]
+  )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && processFile(files[0]),
@@ -212,257 +238,458 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false)
-    const element = document.getElementById(id)
-    element?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const navItems = [
+    { id: 'demo', label: 'Demo' },
+    { id: 'architecture', label: 'Architecture' },
+    { id: 'features', label: 'Features' },
+    { id: 'how-it-works', label: 'How it works' },
+    { id: 'agents', label: 'Agents' },
+  ]
+
   return (
-    <div className="min-h-screen bg-[#212121] text-[#ececec]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#212121]/95 backdrop-blur border-b border-[#2f2f2f]">
-        <div className="px-4 md:px-6 py-3 flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-[#10a37f] flex items-center justify-center">
-              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
+    <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 relative">
+      <div className="pointer-events-none fixed inset-0 bg-mesh-hero" aria-hidden />
+      <div className="pointer-events-none fixed inset-0 bg-grid-faint opacity-40" aria-hidden />
+
+      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl">
+        <div className="px-4 md:px-8 py-3 flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-xl bg-[#10a37f]/40 blur-lg" />
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shadow-lg shadow-[#10a37f]/20">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
             </div>
-            <span className="font-semibold text-base md:text-lg">AgentFlow</span>
+            <div>
+              <span className="font-display font-semibold text-lg tracking-tight">AgentFlow</span>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">
+                Document intelligence
+              </p>
+            </div>
           </div>
-          
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            <button onClick={() => scrollToSection('features')} className="text-sm text-[#b4b4b4] hover:text-[#ececec] transition-colors">
-              Features
-            </button>
-            <button onClick={() => scrollToSection('how-it-works')} className="text-sm text-[#b4b4b4] hover:text-[#ececec] transition-colors">
-              How it Works
-            </button>
-            <button onClick={() => scrollToSection('agents')} className="text-sm text-[#b4b4b4] hover:text-[#ececec] transition-colors">
-              Agents
-            </button>
+
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => scrollToSection(item.id)}
+                className="px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+              >
+                {item.label}
+              </button>
+            ))}
             <a
               href="https://github.com/thedixitjain/AgentFlow"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#b4b4b4] hover:text-[#ececec] transition-colors"
+              className="ml-2 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors inline-flex items-center gap-1"
             >
               GitHub
+              <ExternalLink className="w-3.5 h-3.5 opacity-60" />
             </a>
           </nav>
 
-          {/* Mobile Menu Button */}
-          <button 
-            className="md:hidden p-2"
+          <button
+            type="button"
+            className="lg:hidden p-2 rounded-lg hover:bg-white/5"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
         {mobileMenuOpen && (
-          <nav className="md:hidden px-4 py-4 border-t border-[#2f2f2f] bg-[#212121]">
-            <div className="flex flex-col gap-3">
-              <button onClick={() => scrollToSection('features')} className="text-left py-2 text-[#b4b4b4]">Features</button>
-              <button onClick={() => scrollToSection('how-it-works')} className="text-left py-2 text-[#b4b4b4]">How it Works</button>
-              <button onClick={() => scrollToSection('agents')} className="text-left py-2 text-[#b4b4b4]">Agents</button>
-              <a href="https://github.com/thedixitjain/AgentFlow" target="_blank" rel="noopener noreferrer" className="py-2 text-[#b4b4b4]">GitHub</a>
+          <nav className="lg:hidden px-4 pb-4 border-t border-white/[0.06] bg-[#0c0c0f]">
+            <div className="flex flex-col gap-1 pt-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-left py-3 px-2 text-zinc-300 rounded-lg hover:bg-white/5"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <a
+                href="https://github.com/thedixitjain/AgentFlow"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-3 px-2 text-zinc-300"
+              >
+                GitHub
+              </a>
             </div>
           </nav>
         )}
       </header>
 
-      {/* Hero */}
-      <main className="px-4 md:px-6 pt-12 md:pt-20 pb-12 md:pb-16 max-w-4xl mx-auto text-center">
-        <p className="text-[#10a37f] text-xs md:text-sm font-medium mb-3 md:mb-4 uppercase tracking-wide">
-          Business Document Copilot with Multi-Agent RAG
-        </p>
-        
-        <h1 className="text-3xl md:text-5xl font-semibold mb-4 md:mb-6 leading-tight">
-          Analyze business documents with
-          <br className="hidden md:block" />
-          <span className="md:hidden"> </span>intelligent agents
-        </h1>
-        
-        <p className="text-[#b4b4b4] text-base md:text-lg mb-8 md:mb-12 max-w-xl mx-auto leading-relaxed">
-          Upload sales reports, finance spreadsheets, PDF briefs, or plain text updates.
-          Ask questions in plain English and get grounded answers, summaries, and operational insights.
-        </p>
+      <main className="relative z-10 px-4 md:px-8 pt-14 md:pt-24 pb-16 max-w-5xl mx-auto">
+        {/* Hero */}
+        <section className="text-center mb-20 md:mb-28">
+          <p className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-[#10a37f] mb-6 px-4 py-1.5 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10">
+            <Radio className="w-3.5 h-3.5" />
+            Multi-agent RAG · Groq · Observable backend
+          </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 mb-12 md:mb-16">
-          <div
-            {...getRootProps()}
-            className={`w-full sm:w-auto px-6 py-3 font-medium cursor-pointer transition-all ${
-              isDragActive 
-                ? 'bg-[#10a37f] text-white' 
-                : 'bg-[#ececec] text-[#212121] hover:bg-white'
-            }`}
-          >
-            <input {...getInputProps()} />
-            <div className="flex items-center justify-center gap-2">
-              {isUploading ? (
-                <div className="w-5 h-5 border-2 border-[#212121]/30 border-t-[#212121] animate-spin" />
-              ) : (
-                <Upload className="w-5 h-5" />
-              )}
-              <span>{isDragActive ? 'Drop here' : 'Upload Document'}</span>
+          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold mb-6 leading-[1.1] tracking-tight">
+            Analyze business documents with{' '}
+            <span className="bg-gradient-to-r from-[#5eead4] via-[#10a37f] to-[#34d399] bg-clip-text text-transparent">
+              intelligent agents
+            </span>
+          </h1>
+
+          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
+            Upload sales, finance, or ops files—then ask in plain English. Grounded answers, cited
+            retrieval, and a routing layer built for portfolio-grade demos.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mb-6">
+            <div
+              {...getRootProps()}
+              className={`cursor-pointer rounded-xl px-8 py-3.5 font-medium transition-all shadow-lg ${
+                isDragActive
+                  ? 'bg-[#10a37f] text-white ring-2 ring-[#10a37f]/50'
+                  : 'bg-white text-zinc-900 hover:bg-zinc-100'
+              }`}
+            >
+              <input {...getInputProps()} />
+              <div className="flex items-center justify-center gap-2">
+                {isUploading ? (
+                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-800 rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-5 h-5" />
+                )}
+                <span>{isDragActive ? 'Drop file' : 'Upload document'}</span>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={loadSampleData}
+              disabled={isLoadingSample}
+              className="rounded-xl px-8 py-3.5 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors shadow-lg shadow-[#10a37f]/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoadingSample ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Database className="w-5 h-5" />
+              )}
+              Try sample data
+            </button>
+
+            <button
+              type="button"
+              onClick={onStart}
+              className="rounded-xl px-8 py-3.5 font-medium border border-white/15 bg-white/5 hover:bg-white/10 text-white transition-colors flex items-center justify-center gap-2"
+            >
+              Open workspace
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
 
-          <button
-            onClick={loadSampleData}
-            disabled={isLoadingSample}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors disabled:opacity-50"
-          >
-            {isLoadingSample ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white animate-spin" />
-            ) : (
-              <Database className="w-5 h-5" />
-            )}
-            <span>Try Sample Data</span>
-          </button>
+          <p className="text-xs text-zinc-500">
+            CSV · Excel · PDF · DOCX · TXT — sessions persist on the backend API
+          </p>
+        </section>
 
-          <button
-            onClick={onStart}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-medium border border-[#424242] hover:border-[#8e8e8e] hover:bg-[#2f2f2f] transition-colors"
-          >
-            <span>Start Chat</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Demo video */}
+        <section id="demo" className="mb-24 md:mb-32 scroll-mt-28">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8 text-left">
+            <div>
+              <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-2">
+                See it in action
+              </h2>
+              <p className="text-zinc-400 max-w-xl">
+                Watch a short walkthrough, or use the loop below. Add your own narrated video with{' '}
+                <code className="text-[#10a37f] text-sm">NEXT_PUBLIC_DEMO_VIDEO_URL</code>.
+              </p>
+            </div>
+            <a
+              href={DEMO_PLAYBOOK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-[#10a37f] hover:text-[#5eead4] shrink-0"
+            >
+              <BookOpen className="w-4 h-4" />
+              Recording playbook
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 overflow-hidden shadow-2xl shadow-black/40">
+            {DEMO_VIDEO_URL ? (
+              <div className="aspect-video w-full">
+                <iframe
+                  title="AgentFlow demo"
+                  src={DEMO_VIDEO_URL}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-0 md:gap-8 p-6 md:p-10 items-center">
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/50">
+                  <Image
+                    src="/media/demo.gif"
+                    alt="AgentFlow UI walkthrough animation"
+                    fill
+                    className="object-cover object-top"
+                    unoptimized
+                    priority
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                    <div className="rounded-full bg-white/10 backdrop-blur-sm p-4 border border-white/20">
+                      <Play className="w-10 h-10 text-white" fill="currentColor" />
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-8 md:pt-0">
+                  <h3 className="font-display text-xl font-semibold text-white mb-3">
+                    Add your demo video
+                  </h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed mb-6">
+                    Upload a 2–4 minute screen recording to YouTube (unlisted works), then set the
+                    embed URL in your environment. Until then, visitors see this UI loop from the
+                    repo.
+                  </p>
+                  <ol className="text-sm text-zinc-500 space-y-2 list-decimal list-inside">
+                    <li>Record: upload → question → optional System Insights</li>
+                    <li>Host on YouTube and copy the embed URL</li>
+                    <li>Set <code className="text-zinc-300">NEXT_PUBLIC_DEMO_VIDEO_URL</code></li>
+                  </ol>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Architecture */}
+        <section id="architecture" className="mb-24 md:mb-32 scroll-mt-28">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3 text-center">
+            Production-style architecture
+          </h2>
+          <p className="text-zinc-400 text-center max-w-2xl mx-auto mb-10">
+            Next.js frontend, Express orchestration, embeddings + vector search, file-backed
+            persistence, telemetry and eval hooks—documented for interviews and code review.
+          </p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              {
+                icon: <Layers className="w-5 h-5" />,
+                title: 'Orchestration',
+                body: 'Routes queries to ingest, RAG, Q&A, verifier, or summarizer agents.',
+              },
+              {
+                icon: <Server className="w-5 h-5" />,
+                title: 'API layer',
+                body: 'REST + SSE streaming; workspace headers for scoped sessions.',
+              },
+              {
+                icon: <Search className="w-5 h-5" />,
+                title: 'Retrieval',
+                body: 'Chunking, embeddings, cosine similarity—swap for pgvector later.',
+              },
+              {
+                icon: <Database className="w-5 h-5" />,
+                title: 'Persistence',
+                body: 'JSON-backed sessions and vectors; configurable DATA_DIR for hosts.',
+              },
+              {
+                icon: <BarChart2 className="w-5 h-5" />,
+                title: 'Observability',
+                body: 'Telemetry routes, Prometheus metrics, eval run history.',
+              },
+              {
+                icon: <BookOpen className="w-5 h-5" />,
+                title: 'Docs',
+                body: 'Full diagrams and flows in the architecture guide.',
+                link: ARCHITECTURE_DOC,
+              },
+            ].map((card) => {
+              const inner = (
+                <>
+                  <div className="w-10 h-10 rounded-lg bg-[#10a37f]/15 text-[#10a37f] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                    {card.icon}
+                  </div>
+                  <h3 className="font-display font-semibold text-white mb-2 flex items-center gap-2">
+                    {card.title}
+                    {card.link && (
+                      <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60" />
+                    )}
+                  </h3>
+                  <p className="text-sm text-zinc-400 leading-relaxed">{card.body}</p>
+                </>
+              )
+              const shell =
+                'group rounded-2xl border border-white/[0.08] bg-zinc-900/30 p-6 hover:border-[#10a37f]/30 hover:bg-zinc-900/50 transition-all block'
+              return card.link ? (
+                <a
+                  key={card.title}
+                  href={card.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={shell}
+                >
+                  {inner}
+                </a>
+              ) : (
+                <div key={card.title} className={shell}>
+                  {inner}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-8 text-center">
+            <a
+              href={ARCHITECTURE_DOC}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-medium transition-colors"
+            >
+              Read full architecture (Mermaid diagrams)
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </section>
 
         {/* Features */}
-        <div id="features" className="grid md:grid-cols-3 gap-4 md:gap-6 text-left mb-16 md:mb-20">
-          <div className="p-5 md:p-6 bg-[#2f2f2f] border border-[#424242]">
-            <FileText className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
-            <h3 className="font-semibold mb-2 text-[#ececec]">Document Analysis</h3>
-            <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Upload revenue sheets, ops updates, and business reports. Get summaries, metrics, and grounded answers.
-            </p>
+        <section id="features" className="mb-20 md:mb-28 scroll-mt-28">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-10 text-center">
+            Built for real workflows
+          </h2>
+          <div className="grid md:grid-cols-3 gap-5">
+            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
+              <FileText className="w-9 h-9 mb-5 text-[#10a37f]" />
+              <h3 className="font-display font-semibold text-lg text-white mb-2">Document analysis</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Revenue sheets, briefs, and ops updates—summaries, metrics, and grounded Q&A.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
+              <BarChart2 className="w-9 h-9 mb-5 text-[#10a37f]" />
+              <h3 className="font-display font-semibold text-lg text-white mb-2">RAG retrieval</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Semantic search surfaces the right evidence; responses can cite sources and scores.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
+              <Zap className="w-9 h-9 mb-5 text-[#10a37f]" />
+              <h3 className="font-display font-semibold text-lg text-white mb-2">Multi-agent</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Specialized agents for analysis, verification, and summarization—routed for you.
+              </p>
+            </div>
           </div>
-          
-          <div className="p-5 md:p-6 bg-[#2f2f2f] border border-[#424242]">
-            <BarChart2 className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
-            <h3 className="font-semibold mb-2 text-[#ececec]">RAG-Powered Search</h3>
-            <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Semantic retrieval finds the right evidence from your documents and cites it with relevance scores.
-            </p>
-          </div>
-          
-          <div className="p-5 md:p-6 bg-[#2f2f2f] border border-[#424242]">
-            <Zap className="w-7 h-7 md:w-8 md:h-8 mb-3 md:mb-4 text-[#10a37f]" />
-            <h3 className="font-semibold mb-2 text-[#ececec]">Multi-Agent System</h3>
-            <p className="text-sm text-[#b4b4b4] leading-relaxed">
-              Specialized agents route between analysis, summaries, verification, and retrieval for business questions.
-            </p>
-          </div>
-        </div>
+        </section>
 
-        {/* How it Works */}
-        <div id="how-it-works" className="mb-16 md:mb-20">
-          <h2 className="text-xl md:text-2xl font-semibold mb-3 text-[#ececec]">How it Works</h2>
-          <p className="text-[#b4b4b4] mb-8 max-w-lg mx-auto">
-            AgentFlow uses a multi-agent architecture with RAG for accurate, source-cited analysis across sales and operations documents.
+        {/* How it works */}
+        <section id="how-it-works" className="mb-20 md:mb-28 scroll-mt-28">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
+            How it works
+          </h2>
+          <p className="text-zinc-400 text-center max-w-lg mx-auto mb-12">
+            End-to-end path from upload to grounded answer—same mental model you’d use in a system
+            design interview.
           </p>
-          
-          <div className="grid md:grid-cols-4 gap-4 text-left">
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242] relative">
-              <div className="w-8 h-8 bg-[#10a37f] flex items-center justify-center text-white font-bold mb-3">1</div>
-              <h4 className="font-medium mb-1 text-[#ececec]">Upload</h4>
-              <p className="text-xs text-[#b4b4b4]">Upload CSV, Excel, PDF, or text files</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="w-8 h-8 bg-[#10a37f] flex items-center justify-center text-white font-bold mb-3">2</div>
-              <h4 className="font-medium mb-1 text-[#ececec]">Index</h4>
-              <p className="text-xs text-[#b4b4b4]">Document is chunked and embedded for semantic search</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="w-8 h-8 bg-[#10a37f] flex items-center justify-center text-white font-bold mb-3">3</div>
-              <h4 className="font-medium mb-1 text-[#ececec]">Query</h4>
-              <p className="text-xs text-[#b4b4b4]">Your question is routed to the best agent</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="w-8 h-8 bg-[#10a37f] flex items-center justify-center text-white font-bold mb-3">4</div>
-              <h4 className="font-medium mb-1 text-[#ececec]">Answer</h4>
-              <p className="text-xs text-[#b4b4b4]">Get accurate answers with cited sources</p>
-            </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { step: '1', title: 'Upload', desc: 'CSV, Excel, PDF, or text' },
+              { step: '2', title: 'Index', desc: 'Chunk + embed for semantic search' },
+              { step: '3', title: 'Route', desc: 'Orchestrator picks the best agent' },
+              { step: '4', title: 'Answer', desc: 'Streamed response + optional sources' },
+            ].map((item, i) => (
+              <div
+                key={item.step}
+                className="relative rounded-2xl border border-white/[0.08] bg-zinc-900/30 p-6 text-left"
+              >
+                {i < 3 && (
+                  <div className="hidden lg:block absolute top-1/2 -right-2 w-4 h-px bg-gradient-to-r from-[#10a37f]/50 to-transparent z-10" />
+                )}
+                <div className="w-9 h-9 rounded-lg bg-[#10a37f] text-white font-bold flex items-center justify-center mb-4 text-sm">
+                  {item.step}
+                </div>
+                <h4 className="font-display font-medium text-white mb-1">{item.title}</h4>
+                <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
 
         {/* Agents */}
-        <div id="agents" className="mb-16 md:mb-20">
-          <h2 className="text-xl md:text-2xl font-semibold mb-3 text-[#ececec]">Specialized Agents</h2>
-          <p className="text-[#b4b4b4] mb-8 max-w-lg mx-auto">
-            Each agent is optimized for specific tasks. The orchestrator automatically routes your query.
+        <section id="agents" className="mb-16 md:mb-24 scroll-mt-28">
+          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
+            Agent roster
+          </h2>
+          <p className="text-zinc-400 text-center max-w-lg mx-auto mb-10">
+            Each role is explicit in the UI and in routing—easy to extend with new tools or policies.
           </p>
-          
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="flex items-center gap-2 mb-2">
-                <Search className="w-5 h-5 text-[#3b82f6]" />
-                <span className="font-medium text-[#ececec]">RAG Agent</span>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: Search, color: 'text-blue-400', name: 'RAG', desc: 'Retrieval-augmented answers' },
+              { icon: Bot, color: 'text-violet-400', name: 'Question', desc: 'Direct Q&A with context' },
+              { icon: CheckCircle, color: 'text-amber-400', name: 'Verifier', desc: 'Claims and consistency' },
+              { icon: FileText, color: 'text-pink-400', name: 'Summarizer', desc: 'Briefs and key points' },
+            ].map(({ icon: Icon, color, name, desc }) => (
+              <div
+                key={name}
+                className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-5 hover:bg-zinc-900/40 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={`w-5 h-5 ${color}`} />
+                  <span className="font-display font-medium text-white">{name}</span>
+                </div>
+                <p className="text-xs text-zinc-500">{desc}</p>
               </div>
-              <p className="text-xs text-[#b4b4b4]">Semantic search and retrieval-augmented answers</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="flex items-center gap-2 mb-2">
-                <Bot className="w-5 h-5 text-[#8b5cf6]" />
-                <span className="font-medium text-[#ececec]">Question Agent</span>
-              </div>
-              <p className="text-xs text-[#b4b4b4]">Direct Q&A with context understanding</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-[#f59e0b]" />
-                <span className="font-medium text-[#ececec]">Verifier Agent</span>
-              </div>
-              <p className="text-xs text-[#b4b4b4]">Fact-checking and claim verification</p>
-            </div>
-            
-            <div className="p-4 bg-[#2f2f2f] border border-[#424242]">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-5 h-5 text-[#ec4899]" />
-                <span className="font-medium text-[#ececec]">Summarizer Agent</span>
-              </div>
-              <p className="text-xs text-[#b4b4b4]">Concise summaries and key points extraction</p>
-            </div>
+            ))}
           </div>
-        </div>
+        </section>
 
-        {/* Recent Chats */}
         {recentChats.length > 0 && (
-          <div className="mb-12">
-            <h3 className="text-sm text-[#8e8e8e] mb-4 uppercase tracking-wide">Continue where you left off</h3>
+          <section className="mb-12">
+            <h3 className="text-xs text-zinc-500 mb-4 uppercase tracking-[0.2em] text-center">
+              Continue where you left off
+            </h3>
             <div className="grid gap-3 max-w-lg mx-auto">
               {recentChats.map((chat) => (
                 <button
                   key={chat.id}
+                  type="button"
                   onClick={() => onLoadChat(chat)}
-                  className="p-4 bg-[#2f2f2f] border border-[#424242] hover:border-[#8e8e8e] hover:bg-[#3a3a3a] transition-all text-left"
+                  className="rounded-xl p-4 text-left border border-white/[0.08] bg-zinc-900/40 hover:border-[#10a37f]/40 hover:bg-zinc-900/60 transition-all"
                 >
-                  <p className="text-sm font-medium truncate text-[#ececec]">{chat.title}</p>
-                  <p className="text-xs text-[#8e8e8e] mt-1">
+                  <p className="text-sm font-medium truncate text-white">{chat.title}</p>
+                  <p className="text-xs text-zinc-500 mt-1">
                     {chat.messages.length} messages · {new Date(chat.updatedAt).toLocaleDateString()}
                   </p>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="px-4 md:px-6 py-6 md:py-8 border-t border-[#2f2f2f]">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[#8e8e8e]">
-          <span>Built by Dixit Jain</span>
-          <div className="flex gap-6">
-            <a href="https://github.com/thedixitjain" className="hover:text-[#ececec] transition-colors">GitHub</a>
-            <a href="https://linkedin.com/in/thedixitjain" className="hover:text-[#ececec] transition-colors">LinkedIn</a>
+      <footer className="relative z-10 border-t border-white/[0.06] px-4 md:px-8 py-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-zinc-500">
+          <span>Built by Dixit Jain · AgentFlow</span>
+          <div className="flex flex-wrap justify-center gap-8">
+            <a href="https://github.com/thedixitjain" className="hover:text-white transition-colors">
+              GitHub
+            </a>
+            <a href="https://linkedin.com/in/thedixitjain" className="hover:text-white transition-colors">
+              LinkedIn
+            </a>
+            <a href={ARCHITECTURE_DOC} className="hover:text-white transition-colors">
+              Architecture
+            </a>
           </div>
         </div>
       </footer>

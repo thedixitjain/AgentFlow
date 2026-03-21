@@ -178,7 +178,7 @@ export function Sidebar({
   })
 
   return (
-    <aside className="w-64 bg-[#171717] flex flex-col h-full">
+    <aside className="w-64 md:w-72 shrink-0 bg-[var(--sidebar-bg)] border-r border-white/[0.06] flex flex-col h-full">
       {/* Header */}
       <div className="p-3 flex items-center justify-between">
         <button
@@ -194,14 +194,14 @@ export function Sidebar({
       <div className="px-3 pb-3">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2.5 bg-[#10a37f] hover:bg-[#0d8a6a] text-white text-sm font-medium transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#10a37f] hover:bg-[#0d8a6a] text-white text-sm font-medium transition-colors shadow-md shadow-[#10a37f]/15"
         >
           <Plus className="w-4 h-4" />
           New Chat
         </button>
         <button
           onClick={onOpenSystemInsights}
-          className="w-full mt-2 flex items-center gap-2 px-3 py-2.5 bg-[#2f2f2f] hover:bg-[#3a3a3a] text-[#ececec] text-sm font-medium transition-colors"
+          className="w-full mt-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-100 text-sm font-medium transition-colors border border-white/[0.06]"
         >
           <BarChart3 className="w-4 h-4" />
           System Insights
@@ -212,10 +212,10 @@ export function Sidebar({
       <div className="px-3 pb-3">
         <div
           {...getRootProps()}
-          className={`border border-dashed p-4 text-center cursor-pointer transition-all ${
+          className={`border border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
             isDragActive 
               ? 'border-[#10a37f] bg-[#10a37f]/10' 
-              : 'border-[#424242] hover:border-[#8e8e8e]'
+              : 'border-white/[0.12] hover:border-[#10a37f]/40 bg-zinc-900/30'
           }`}
         >
           <input {...getInputProps()} />
@@ -305,7 +305,7 @@ export function Sidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[#2f2f2f]">
+      <div className="p-4 border-t border-white/[0.06]">
         <p className="text-xs text-[#8e8e8e] text-center">
           Persistent backend sessions with Groq
         </p>

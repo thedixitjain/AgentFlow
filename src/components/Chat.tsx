@@ -104,21 +104,21 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#212121]">
+    <div className="flex-1 flex flex-col h-full bg-[var(--chat-bg)] min-w-0">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-4 md:p-8">
             <div className="max-w-2xl w-full text-center">
-              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 md:mb-6 bg-[#10a37f] flex items-center justify-center">
-                <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-white" />
+              <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-4 md:mb-6 rounded-2xl bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shadow-lg shadow-[#10a37f]/25">
+                <Sparkles className="w-7 h-7 md:w-8 md:h-8 text-white" />
               </div>
               
-              <h1 className="text-xl md:text-2xl font-semibold mb-2 md:mb-3 text-[#ececec]">
+              <h1 className="font-display text-xl md:text-2xl font-semibold mb-2 md:mb-3 text-zinc-100">
                 {hasDocument ? `Analyzing ${documentName}` : 'How can I help you today?'}
               </h1>
               
-              <p className="text-sm md:text-base text-[#b4b4b4] mb-6 md:mb-8 px-4">
+              <p className="text-sm md:text-base text-zinc-400 mb-6 md:mb-8 px-4">
                 {hasDocument 
                   ? 'Ask business questions about your document. I use RAG to find evidence and cite sources.'
                   : 'I can help analyze sales, finance, and operations documents with grounded answers.'}
@@ -134,7 +134,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
                   <button
                     key={prompt}
                     onClick={() => onSendMessage(prompt)}
-                    className="p-3 text-left text-sm bg-[#2f2f2f] hover:bg-[#3a3a3a] border border-[#424242] text-[#ececec] transition-colors"
+                    className="p-3 text-left text-sm rounded-xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/[0.08] text-zinc-100 transition-colors"
                   >
                     {prompt}
                   </button>
@@ -150,12 +150,12 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
               return (
                 <div
                   key={message.id}
-                  className="animate-fade-in px-3 md:px-4 py-4 md:py-6 border-b border-[#424242] last:border-b-0"
+                  className="animate-fade-in px-3 md:px-4 py-4 md:py-6 border-b border-white/[0.06] last:border-b-0"
                 >
                   <div className="flex gap-3 md:gap-4">
                     {/* Avatar */}
                     <div 
-                      className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0 flex items-center justify-center"
+                      className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0 flex items-center justify-center rounded-xl"
                       style={{ backgroundColor: message.role === 'user' ? '#5436DA' : agentConfig?.color || '#10a37f' }}
                     >
                       {message.role === 'user' ? (
@@ -276,7 +276,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="px-3 md:px-4 py-4 md:py-6 animate-fade-in">
                 <div className="flex gap-3 md:gap-4">
-                  <div className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0 flex items-center justify-center bg-[#10a37f]">
+                  <div className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-[#10a37f]">
                     <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>
                   <div className="flex items-center gap-2">
@@ -295,10 +295,10 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#424242] p-3 md:p-4 bg-[#212121]">
+      <div className="border-t border-white/[0.06] p-3 md:p-4 bg-[var(--chat-bg)]">
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSubmit}>
-            <div className="relative bg-[#2f2f2f] border border-[#424242] focus-within:border-[#10a37f]">
+            <div className="relative rounded-2xl bg-zinc-900/80 border border-white/[0.08] focus-within:border-[#10a37f]/50 focus-within:ring-1 focus-within:ring-[#10a37f]/20 transition-shadow">
               {hasDocument && (
                 <div className="px-3 md:px-4 pt-2 md:pt-3 pb-1 flex items-center gap-2 text-xs text-[#b4b4b4]">
                   <Paperclip className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ export function Chat({ messages, isLoading, onSendMessage, hasDocument, document
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="p-2 bg-[#10a37f] hover:bg-[#0d8a6a] disabled:bg-[#424242] disabled:cursor-not-allowed text-white transition-colors"
+                  className="p-2.5 rounded-xl bg-[#10a37f] hover:bg-[#0d8a6a] disabled:bg-zinc-700 disabled:cursor-not-allowed text-white transition-colors"
                 >
                   <Send className="w-4 h-4" />
                 </button>

@@ -333,7 +333,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex bg-[#212121]">
+    <div className="h-screen flex bg-[var(--chat-bg)]">
       <Sidebar
         documents={documents}
         activeDocument={activeDocument}

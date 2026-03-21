@@ -46,6 +46,10 @@ Screenshots:
 
 ## Architecture
 
+**Full write-up (diagrams, sequence flows, deployment):** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+**Demo video (embed + recording playbook):** [docs/DEMO_VIDEO.md](docs/DEMO_VIDEO.md)
+
 ```text
 Frontend (Next.js)
   -> Chat, sidebar, document upload, system insights panel
@@ -94,6 +98,21 @@ Recommended local demo:
 - Telemetry endpoint for recent route, retrieval, and provider behavior
 - System insights UI for live demos
 - Business-document positioning instead of a generic chatbot UX
+
+## Deploying on Render
+
+The backend can be deployed on Render as a Docker service.
+
+**Data directory:** The backend tries `DATA_DIR` (if set), then `/app/data` under the app working directory, then a temp folder. So even if `DATA_DIR=/var/data` is set but that path is not writable (e.g. no disk attached), the service still starts and uses `/app/data`.
+
+1. **Recommended for free tier / no disk:** Remove `DATA_DIR` from Render **Environment** (or leave it—fallback still works). Data lives under `/app/data` in the container (ephemeral on free tier).
+
+2. **With persistent disk** (data survives redeploys):
+   - Render Dashboard → Disks → Add Disk, mount path `/var/data`
+   - Set `DATA_DIR=/var/data`
+   - The Docker entrypoint attempts to fix ownership on that path when present
+
+Required env vars: `GROQ_API_KEY`, `CORS_ORIGIN` (your frontend URL).
 
 ## Local Setup
 

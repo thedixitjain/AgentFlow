@@ -3,16 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: #212121;
-  --surface: #2f2f2f;
-  --surface-hover: #3a3a3a;
-  --border: #424242;
-  --text-primary: #ececec;
-  --text-secondary: #b4b4b4;
-  --text-muted: #8e8e8e;
+  --background: #0c0c0f;
+  --surface: #141418;
+  --surface-elevated: #1a1a1f;
+  --surface-hover: #222228;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
   --accent: #10a37f;
   --accent-hover: #0d8a6a;
-  --user-bubble: #2f2f2f;
+  --accent-glow: rgba(16, 163, 127, 0.35);
+  --user-bubble: #1a1a1f;
+  --chat-bg: #0c0c0f;
+  --sidebar-bg: #09090b;
 }
 
 * {
@@ -27,6 +32,14 @@ body {
   overflow-x: hidden;
   background: var(--background);
   color: var(--text-primary);
+}
+
+/* Subtle grid for marketing sections */
+.bg-grid-faint {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
 
 body {
