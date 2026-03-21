@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { AlertCircle, X } from 'lucide-react'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
@@ -9,6 +10,20 @@ import { SystemInsightsPanel } from '@/components/SystemInsightsPanel'
 import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types'
 import { generateInsights } from '@/lib/insights'
 import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun } from '@/lib/api'
+import { getPublicApiUrl, isProductionApiLikelyMisconfigured } from '@/lib/env'
+
+function formatAppError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e)
+  if (
+    e instanceof TypeError ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('Load failed')
+  ) {
+    return 'Cannot reach the API. On Vercel, set NEXT_PUBLIC_API_URL to your Render URL ending in /api (see README). On Render, set CORS_ORIGIN to this site’s URL (comma-separated if you also use localhost).'
+  }
+  return msg || 'Something went wrong.'
+}
 
 function mapDocument(document: ApiDocument): DocumentFile {
   return {
@@ -60,6 +75,12 @@ export default function Home() {
   const [showSystemInsights, setShowSystemInsights] = useState(false)
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
   const [recentEval, setRecentEval] = useState<EvalRun | null>(null)
+  const [appError, setAppError] = useState<string | null>(null)
+  const [configWarning, setConfigWarning] = useState(false)
+
+  useEffect(() => {
+    setConfigWarning(isProductionApiLikelyMisconfigured())
+  }, [])
 
   const refreshChatHistory = useCallback(async () => {
     try {
@@ -142,9 +163,10 @@ export default function Home() {
   }, [refreshSystemInsights, showSystemInsights])
 
   const handleFileUpload = useCallback(async (file: DocumentFile) => {
-    const sessionId = await ensureSession()
-
+    setAppError(null)
     try {
+      const sessionId = await ensureSession()
+
       const saved = await api.createParsedDocument(sessionId, {
         name: file.name,
         type: file.type,
@@ -173,6 +195,7 @@ export default function Home() {
       await refreshChatHistory()
     } catch (error) {
       console.error('Failed to save document:', error)
+      setAppError(formatAppError(error))
     }
   }, [ensureSession, refreshChatHistory])
 
@@ -283,9 +306,28 @@ export default function Home() {
     void createNewSession()
   }, [createNewSession])
 
-  const handleLoadChat = useCallback((chat: ChatHistory) => {
-    void loadSession(chat.id)
-  }, [loadSession])
+  const handleLoadChat = useCallback(
+    async (chat: ChatHistory) => {
+      setAppError(null)
+      try {
+        await loadSession(chat.id)
+      } catch (error) {
+        console.error('Failed to load chat:', error)
+        setAppError(formatAppError(error))
+      }
+    },
+    [loadSession]
+  )
+
+  const handleLandingStart = useCallback(async () => {
+    setAppError(null)
+    try {
+      await createNewSession()
+    } catch (error) {
+      console.error('Failed to start workspace:', error)
+      setAppError(formatAppError(error))
+    }
+  }, [createNewSession])
 
   const handleDeleteChat = useCallback((id: string) => {
     void (async () => {
@@ -317,23 +359,41 @@ export default function Home() {
     setInsights([])
     setShowInsights(false)
     setShowSystemInsights(false)
+    setAppError(null)
   }, [])
 
   if (showLanding) {
     return (
       <Landing
-        onStart={() => {
-          void createNewSession()
-        }}
+        onStart={handleLandingStart}
         onFileUpload={handleFileUpload}
         recentChats={chatHistory.slice(0, 3)}
         onLoadChat={handleLoadChat}
+        errorMessage={appError}
+        onDismissError={() => setAppError(null)}
+        configWarning={configWarning}
+        configuredApiUrl={getPublicApiUrl()}
       />
     )
   }
 
   return (
-    <div className="h-screen flex bg-[var(--chat-bg)]">
+    <div className="h-screen flex flex-col bg-[var(--chat-bg)]">
+      {appError && (
+        <div className="shrink-0 flex items-start gap-2 px-4 py-2.5 bg-red-950/90 border-b border-red-500/30 text-red-100 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="flex-1 leading-snug">{appError}</p>
+          <button
+            type="button"
+            onClick={() => setAppError(null)}
+            className="p-1 rounded hover:bg-red-900/80"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      <div className="flex flex-1 min-h-0">
       <Sidebar
         documents={documents}
         activeDocument={activeDocument}
@@ -385,6 +445,7 @@ export default function Home() {
           onClose={() => setShowSystemInsights(false)}
         />
       )}
+      </div>
     </div>
   )
 }

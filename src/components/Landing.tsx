@@ -23,6 +23,8 @@ import {
   Server,
   BookOpen,
   ExternalLink,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 
@@ -52,36 +54,66 @@ const DEMO_VIDEO_URL = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL
 const ARCHITECTURE_DOC =
   'https://github.com/thedixitjain/AgentFlow/blob/main/docs/ARCHITECTURE.md'
 interface LandingProps {
-  onStart: () => void
-  onFileUpload: (file: DocumentFile) => void
+  onStart: () => Promise<void>
+  onFileUpload: (file: DocumentFile) => Promise<void>
   recentChats: ChatHistory[]
-  onLoadChat: (chat: ChatHistory) => void
+  onLoadChat: (chat: ChatHistory) => Promise<void>
+  errorMessage: string | null
+  onDismissError: () => void
+  configWarning: boolean
+  configuredApiUrl: string
 }
 
-export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: LandingProps) {
+export function Landing({
+  onStart,
+  onFileUpload,
+  recentChats,
+  onLoadChat,
+  errorMessage,
+  onDismissError,
+  configWarning,
+  configuredApiUrl,
+}: LandingProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isLoadingSample, setIsLoadingSample] = useState(false)
+  const [isOpeningWorkspace, setIsOpeningWorkspace] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const loadSampleData = useCallback(() => {
+  const loadSampleData = useCallback(async () => {
     setIsLoadingSample(true)
-
-    Papa.parse(SAMPLE_SALES_CSV, {
-      header: true,
-      complete: (results) => {
-        const data = results.data as Record<string, unknown>[]
-        onFileUpload({
-          name: 'sales_data.csv',
-          type: 'csv',
-          size: SAMPLE_SALES_CSV.length,
-          data: data.filter((row) => Object.values(row).some((v) => v)),
-          columns: results.meta.fields || [],
-          uploadedAt: new Date(),
+    try {
+      await new Promise<void>((resolve, reject) => {
+        Papa.parse(SAMPLE_SALES_CSV, {
+          header: true,
+          complete: (results) => {
+            const data = results.data as Record<string, unknown>[]
+            void onFileUpload({
+              name: 'sales_data.csv',
+              type: 'csv',
+              size: SAMPLE_SALES_CSV.length,
+              data: data.filter((row) => Object.values(row).some((v) => v)),
+              columns: results.meta.fields || [],
+              uploadedAt: new Date(),
+            })
+              .then(resolve)
+              .catch(reject)
+          },
+          error: (err: Error) => reject(err),
         })
-        setIsLoadingSample(false)
-      },
-    })
+      })
+    } finally {
+      setIsLoadingSample(false)
+    }
   }, [onFileUpload])
+
+  const handleOpenWorkspace = useCallback(async () => {
+    setIsOpeningWorkspace(true)
+    try {
+      await onStart()
+    } finally {
+      setIsOpeningWorkspace(false)
+    }
+  }, [onStart])
 
   const processFile = useCallback(
     async (file: File) => {
@@ -90,26 +122,31 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
       try {
         if (ext === 'csv') {
-          Papa.parse(file, {
-            header: true,
-            complete: (results) => {
-              const data = results.data as Record<string, unknown>[]
-              onFileUpload({
-                name: file.name,
-                type: 'csv',
-                size: file.size,
-                data: data.filter((row) => Object.values(row).some((v) => v)),
-                columns: results.meta.fields || [],
-                uploadedAt: new Date(),
-              })
-            },
+          await new Promise<void>((resolve, reject) => {
+            Papa.parse(file, {
+              header: true,
+              complete: (results) => {
+                const data = results.data as Record<string, unknown>[]
+                void onFileUpload({
+                  name: file.name,
+                  type: 'csv',
+                  size: file.size,
+                  data: data.filter((row) => Object.values(row).some((v) => v)),
+                  columns: results.meta.fields || [],
+                  uploadedAt: new Date(),
+                })
+                  .then(resolve)
+                  .catch(reject)
+              },
+              error: (err: Error) => reject(err),
+            })
           })
         } else if (ext === 'xlsx' || ext === 'xls') {
           const buffer = await file.arrayBuffer()
           const workbook = XLSX.read(buffer, { type: 'array' })
           const sheet = workbook.Sheets[workbook.SheetNames[0]]
           const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]
-          onFileUpload({
+          await onFileUpload({
             name: file.name,
             type: 'xlsx',
             size: file.size,
@@ -119,7 +156,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
           })
         } else if (ext === 'txt') {
           const text = await file.text()
-          onFileUpload({
+          await onFileUpload({
             name: file.name,
             type: 'txt',
             size: file.size,
@@ -138,7 +175,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
             if (response.ok) {
               const result = await response.json()
-              onFileUpload({
+              await onFileUpload({
                 name: file.name,
                 type: 'pdf',
                 size: file.size,
@@ -146,7 +183,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
                 uploadedAt: new Date(),
               })
             } else {
-              onFileUpload({
+              await onFileUpload({
                 name: file.name,
                 type: 'pdf',
                 size: file.size,
@@ -155,7 +192,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
               })
             }
           } catch {
-            onFileUpload({
+            await onFileUpload({
               name: file.name,
               type: 'pdf',
               size: file.size,
@@ -175,7 +212,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
 
             if (response.ok) {
               const result = await response.json()
-              onFileUpload({
+              await onFileUpload({
                 name: file.name,
                 type: 'docx',
                 size: file.size,
@@ -183,7 +220,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
                 uploadedAt: new Date(),
               })
             } else {
-              onFileUpload({
+              await onFileUpload({
                 name: file.name,
                 type: 'docx',
                 size: file.size,
@@ -192,7 +229,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
               })
             }
           } catch {
-            onFileUpload({
+            await onFileUpload({
               name: file.name,
               type: 'docx',
               size: file.size,
@@ -202,7 +239,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
           }
         } else if (ext === 'pptx' || ext === 'ppt') {
           const text = await file.text().catch(() => '')
-          onFileUpload({
+          await onFileUpload({
             name: file.name,
             type: 'pptx',
             size: file.size,
@@ -325,7 +362,43 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
         )}
       </header>
 
-      <main className="relative z-10 px-4 sm:px-6 lg:px-8 pt-14 md:pt-24 pb-16 max-w-6xl mx-auto">
+      {configWarning && (
+        <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-sm text-amber-100/95">
+            <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-amber-50">API URL not set for production</p>
+              <p className="text-amber-100/80 text-xs mt-1 leading-relaxed">
+                This deployment is still pointing at <code className="text-amber-200/90">localhost</code>.
+                In Vercel → Environment Variables, set{' '}
+                <code className="text-amber-200/90">NEXT_PUBLIC_API_URL</code> to your Render API (e.g.{' '}
+                <code className="text-amber-200/90 break-all">https://your-service.onrender.com/api</code>
+                ), then redeploy. On Render, set{' '}
+                <code className="text-amber-200/90">CORS_ORIGIN</code> to this site&apos;s URL.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+          <div className="flex items-start gap-3 rounded-xl border border-red-500/35 bg-red-950/60 px-4 py-3 text-sm text-red-100">
+            <AlertCircle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
+            <p className="flex-1 leading-relaxed">{errorMessage}</p>
+            <button
+              type="button"
+              onClick={onDismissError}
+              className="p-1 rounded-lg hover:bg-red-900/60 shrink-0"
+              aria-label="Dismiss error"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="relative z-10 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-16 max-w-6xl mx-auto">
         {/* Hero */}
         <section className="text-center mb-16 md:mb-20 max-w-4xl mx-auto">
           <p className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-[#10a37f] mb-6 px-4 py-1.5 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10">
@@ -345,52 +418,59 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             retrieval, and a routing layer built for portfolio-grade demos.
           </p>
 
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 mb-6 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 max-w-3xl mx-auto w-full">
             <div
               {...getRootProps()}
-              className={`cursor-pointer rounded-xl px-8 py-3.5 font-medium transition-all shadow-lg ${
+              className={`cursor-pointer rounded-xl px-5 py-3.5 font-medium transition-all shadow-lg min-h-[52px] flex items-center justify-center ${
                 isDragActive
                   ? 'bg-[#10a37f] text-white ring-2 ring-[#10a37f]/50'
                   : 'bg-white text-zinc-900 hover:bg-zinc-100'
-              }`}
+              } ${isUploading || isLoadingSample || isOpeningWorkspace ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <input {...getInputProps()} />
               <div className="flex items-center justify-center gap-2">
                 {isUploading ? (
-                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-800 rounded-full animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <Upload className="w-5 h-5" />
                 )}
-                <span>{isDragActive ? 'Drop file' : 'Upload document'}</span>
+                <span className="text-sm sm:text-base">{isDragActive ? 'Drop file' : 'Upload document'}</span>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={loadSampleData}
-              disabled={isLoadingSample}
-              className="rounded-xl px-8 py-3.5 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors shadow-lg shadow-[#10a37f]/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              onClick={() => void loadSampleData()}
+              disabled={isLoadingSample || isUploading || isOpeningWorkspace}
+              className="rounded-xl px-5 py-3.5 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors shadow-lg shadow-[#10a37f]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[52px]"
             >
               {isLoadingSample ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <Database className="w-5 h-5" />
               )}
-              Try sample data
+              <span className="text-sm sm:text-base">Try sample data</span>
             </button>
 
             <button
               type="button"
-              onClick={onStart}
-              className="rounded-xl px-8 py-3.5 font-medium border border-white/15 bg-white/5 hover:bg-white/10 text-white transition-colors flex items-center justify-center gap-2"
+              onClick={() => void handleOpenWorkspace()}
+              disabled={isOpeningWorkspace || isLoadingSample || isUploading}
+              className="rounded-xl px-5 py-3.5 font-medium border-2 border-[#10a37f]/40 bg-[#10a37f]/10 hover:bg-[#10a37f]/20 text-white transition-colors flex items-center justify-center gap-2 min-h-[52px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Open workspace
-              <ArrowRight className="w-4 h-4" />
+              {isOpeningWorkspace ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <ArrowRight className="w-5 h-5 text-[#5eead4]" />
+              )}
+              <span className="text-sm sm:text-base font-semibold">Open workspace</span>
             </button>
           </div>
 
-          <p className="text-xs text-zinc-500 max-w-md mx-auto">
-            Supports CSV, Excel, PDF, DOCX, TXT · Each chat is a persisted backend session
+          <p className="text-xs text-zinc-500 max-w-lg mx-auto leading-relaxed">
+            All three actions talk to your deployed API (
+            <span className="text-zinc-400 font-mono text-[10px] break-all">{configuredApiUrl}</span>
+            ). Configure it on Vercel so recruiters can use the demo.
           </p>
         </section>
 
@@ -698,7 +778,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
                 <button
                   key={chat.id}
                   type="button"
-                  onClick={() => onLoadChat(chat)}
+                  onClick={() => void onLoadChat(chat)}
                   className="rounded-xl p-4 text-left border border-white/[0.08] bg-zinc-900/40 hover:border-[#10a37f]/40 hover:bg-zinc-900/60 transition-all"
                 >
                   <p className="text-sm font-medium truncate text-white">{chat.title}</p>

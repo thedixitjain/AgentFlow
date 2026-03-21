@@ -21,12 +21,18 @@ const recentChats: ChatHistory[] = [
 ]
 
 export default function ShowcaseLandingPage() {
+  const noop = async () => {}
+
   return (
     <Landing
-      onStart={() => undefined}
-      onFileUpload={() => undefined}
+      onStart={noop}
+      onFileUpload={noop}
       recentChats={recentChats}
-      onLoadChat={() => undefined}
+      onLoadChat={noop}
+      errorMessage={null}
+      onDismissError={() => {}}
+      configWarning={false}
+      configuredApiUrl="http://localhost:4000/api"
     />
   )
 }
