@@ -29,6 +29,8 @@ interface ChatProps {
   documentName?: string
   /** Backend session id, shown so visitors understand state is persisted */
   sessionId?: string
+  /** Return to main landing (top); same as sidebar logo */
+  onNavigateHome?: () => void
 }
 
 const AGENT_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -46,6 +48,7 @@ export function Chat({
   hasDocument,
   documentName,
   sessionId,
+  onNavigateHome,
 }: ChatProps) {
   const [input, setInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -123,9 +126,26 @@ export function Chat({
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h2 className="font-display text-sm font-semibold text-zinc-100 tracking-tight">
-                Chat workspace
-              </h2>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                {onNavigateHome && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onNavigateHome}
+                      className="font-display text-sm font-semibold text-[#10a37f] hover:text-[#5eead4] transition-colors cursor-pointer"
+                      aria-label="AgentFlow, go to landing page"
+                    >
+                      AgentFlow
+                    </button>
+                    <span className="text-zinc-600 text-sm" aria-hidden>
+                      /
+                    </span>
+                  </>
+                )}
+                <h2 className="font-display text-sm font-semibold text-zinc-100 tracking-tight">
+                  Chat workspace
+                </h2>
+              </div>
               <p className="text-xs text-zinc-500 mt-1 leading-relaxed max-w-xl">
                 Your file is chunked and embedded on the server. Each question can trigger{' '}
                 <span className="text-zinc-400">retrieval (RAG)</span>, then an{' '}

@@ -15,16 +15,28 @@ import {
 interface InsightsPanelProps {
   insights: DocumentInsight[]
   onClose: () => void
+  onNavigateHome?: () => void
 }
 
-export function InsightsPanel({ insights, onClose }: InsightsPanelProps) {
+export function InsightsPanel({ insights, onClose, onNavigateHome }: InsightsPanelProps) {
   return (
     <div className="w-80 bg-[#171717] border-l border-[#2f2f2f] flex flex-col h-full animate-fade-in">
       {/* Header */}
       <div className="p-4 border-b border-[#2f2f2f] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="w-5 h-5 text-[#10a37f]" />
-          <span className="font-semibold text-[#ececec]">Insights</span>
+        <div className="flex flex-col gap-1 min-w-0">
+          {onNavigateHome && (
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="text-xs font-semibold text-[#10a37f] hover:text-[#5eead4] self-start transition-colors cursor-pointer"
+            >
+              AgentFlow
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <BarChart2 className="w-5 h-5 text-[#10a37f]" />
+            <span className="font-semibold text-[#ececec]">Insights</span>
+          </div>
         </div>
         <button
           onClick={onClose}

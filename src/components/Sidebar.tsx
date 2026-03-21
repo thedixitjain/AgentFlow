@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -181,10 +182,13 @@ export function Sidebar({
   return (
     <aside className="w-64 md:w-72 shrink-0 bg-[var(--sidebar-bg)] border-r border-white/[0.06] flex flex-col h-full">
       <div className="p-3 pb-2 border-b border-white/[0.05]">
-        <button
-          type="button"
-          onClick={onBackToHome}
-          className="group flex items-center gap-2 px-1 mb-2 w-full text-left rounded-lg py-1 -mx-0.5 hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+        <Link
+          href="/"
+          onClick={(e) => {
+            e.preventDefault()
+            onBackToHome()
+          }}
+          className="group flex items-center gap-2 px-1 mb-2 w-full text-left rounded-lg py-1 -mx-0.5 hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)] cursor-pointer relative z-20"
           aria-label="AgentFlow, go to landing page"
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.02]">
@@ -194,15 +198,18 @@ export function Sidebar({
             <p className="font-display text-sm font-semibold text-zinc-100 leading-tight">AgentFlow</p>
             <p className="text-[10px] text-zinc-500 leading-snug group-hover:text-zinc-400">RAG workspace</p>
           </div>
-        </button>
-        <button
-          type="button"
-          onClick={onBackToHome}
-          className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.05] transition-colors text-left"
+        </Link>
+        <Link
+          href="/"
+          onClick={(e) => {
+            e.preventDefault()
+            onBackToHome()
+          }}
+          className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.05] transition-colors text-left cursor-pointer relative z-20"
         >
           <Home className="w-4 h-4 shrink-0" />
           <span>Back to landing</span>
-        </button>
+        </Link>
       </div>
 
       {/* New Chat Button */}

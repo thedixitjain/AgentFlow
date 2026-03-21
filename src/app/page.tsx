@@ -12,6 +12,7 @@ import { generateInsights } from '@/lib/insights'
 import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun } from '@/lib/api'
 import { getPublicApiUrl, isProductionApiLikelyMisconfigured } from '@/lib/env'
 import { isSessionNotFoundError } from '@/lib/sessionErrors'
+import { scrollWindowToTop } from '@/lib/scrollToTop'
 
 function formatAppError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
@@ -424,6 +425,8 @@ export default function Home() {
     setShowInsights(false)
     setShowSystemInsights(false)
     setAppError(null)
+    queueMicrotask(() => scrollWindowToTop())
+    requestAnimationFrame(() => scrollWindowToTop())
   }, [])
 
   if (showLanding) {
@@ -491,12 +494,14 @@ export default function Home() {
         hasDocument={!!activeDocument}
         documentName={activeDocument || undefined}
         sessionId={currentChatId || undefined}
+        onNavigateHome={handleBackToHome}
       />
 
       {showInsights && insights.length > 0 && (
         <InsightsPanel
           insights={insights}
           onClose={() => setShowInsights(false)}
+          onNavigateHome={handleBackToHome}
         />
       )}
 
@@ -507,6 +512,7 @@ export default function Home() {
           onRefresh={refreshSystemInsights}
           onRunEval={runEvalSuite}
           onClose={() => setShowSystemInsights(false)}
+          onNavigateHome={handleBackToHome}
         />
       )}
       </div>

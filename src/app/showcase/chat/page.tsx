@@ -63,7 +63,7 @@ export default function ShowcaseChatPage() {
         onNewChat={() => undefined}
         onLoadChat={() => undefined}
         onDeleteChat={() => undefined}
-        onBackToHome={() => router.push('/')}
+        onBackToHome={() => router.push('/', { scroll: true })}
         onOpenSystemInsights={() => undefined}
       />
       <Chat
@@ -72,6 +72,7 @@ export default function ShowcaseChatPage() {
         onSendMessage={() => undefined}
         hasDocument
         documentName="q4-revenue-report.txt"
+        onNavigateHome={() => router.push('/', { scroll: true })}
       />
     </div>
   )

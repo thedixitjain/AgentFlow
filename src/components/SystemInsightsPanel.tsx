@@ -10,6 +10,8 @@ interface SystemInsightsPanelProps {
   onRefresh: () => Promise<void>
   onRunEval: () => Promise<void>
   onClose: () => void
+  /** Return to main landing */
+  onNavigateHome?: () => void
 }
 
 export function SystemInsightsPanel({
@@ -18,6 +20,7 @@ export function SystemInsightsPanel({
   onRefresh,
   onRunEval,
   onClose,
+  onNavigateHome,
 }: SystemInsightsPanelProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isRunningEval, setIsRunningEval] = useState(false)
@@ -43,7 +46,16 @@ export function SystemInsightsPanel({
   return (
     <div className="w-96 bg-[#171717] border-l border-[#2f2f2f] flex flex-col h-full">
       <div className="p-4 border-b border-[#2f2f2f] flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
+          {onNavigateHome && (
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="text-xs font-semibold text-[#10a37f] hover:text-[#5eead4] mb-1 transition-colors cursor-pointer"
+            >
+              AgentFlow
+            </button>
+          )}
           <p className="text-sm font-semibold text-[#ececec]">System Insights</p>
           <p className="text-xs text-[#8e8e8e]">Telemetry, evals, and runtime health</p>
         </div>

@@ -131,7 +131,7 @@ export default function ShowcaseInsightsPage() {
         onNewChat={() => undefined}
         onLoadChat={() => undefined}
         onDeleteChat={() => undefined}
-        onBackToHome={() => router.push('/')}
+        onBackToHome={() => router.push('/', { scroll: true })}
         onOpenSystemInsights={() => undefined}
       />
       <Chat
@@ -140,6 +140,7 @@ export default function ShowcaseInsightsPage() {
         onSendMessage={() => undefined}
         hasDocument
         documentName="ops-update.txt"
+        onNavigateHome={() => router.push('/', { scroll: true })}
       />
       <SystemInsightsPanel
         stats={stats}
@@ -147,6 +148,7 @@ export default function ShowcaseInsightsPage() {
         onRefresh={async () => undefined}
         onRunEval={async () => undefined}
         onClose={() => undefined}
+        onNavigateHome={() => router.push('/', { scroll: true })}
       />
     </div>
   )

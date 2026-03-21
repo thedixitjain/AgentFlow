@@ -289,7 +289,12 @@ export function Landing({
 
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl">
         <div className="px-4 md:px-8 py-3 flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-3 rounded-xl p-1 -m-1 pr-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40"
+            aria-label="AgentFlow, scroll to top"
+          >
             <div className="relative">
               <div className="absolute inset-0 rounded-xl bg-[#10a37f]/40 blur-lg" />
               <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shadow-lg shadow-[#10a37f]/20">
@@ -302,7 +307,7 @@ export function Landing({
                 Document intelligence
               </p>
             </div>
-          </div>
+          </button>
 
           <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
