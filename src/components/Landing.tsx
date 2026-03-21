@@ -18,7 +18,6 @@ import {
   Search,
   Menu,
   X,
-  Play,
   Layers,
   Radio,
   Server,
@@ -52,9 +51,6 @@ const SAMPLE_SALES_CSV = `Date,Product,Category,Sales,Revenue,Customer_ID,Region
 const DEMO_VIDEO_URL = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL
 const ARCHITECTURE_DOC =
   'https://github.com/thedixitjain/AgentFlow/blob/main/docs/ARCHITECTURE.md'
-const DEMO_PLAYBOOK =
-  'https://github.com/thedixitjain/AgentFlow/blob/main/docs/DEMO_VIDEO.md'
-
 interface LandingProps {
   onStart: () => void
   onFileUpload: (file: DocumentFile) => void
@@ -329,9 +325,9 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
         )}
       </header>
 
-      <main className="relative z-10 px-4 md:px-8 pt-14 md:pt-24 pb-16 max-w-5xl mx-auto">
+      <main className="relative z-10 px-4 sm:px-6 lg:px-8 pt-14 md:pt-24 pb-16 max-w-6xl mx-auto">
         {/* Hero */}
-        <section className="text-center mb-20 md:mb-28">
+        <section className="text-center mb-16 md:mb-20 max-w-4xl mx-auto">
           <p className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-[#10a37f] mb-6 px-4 py-1.5 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10">
             <Radio className="w-3.5 h-3.5" />
             Multi-agent RAG · Groq · Observable backend
@@ -349,7 +345,7 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             retrieval, and a routing layer built for portfolio-grade demos.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 mb-6 max-w-2xl mx-auto">
             <div
               {...getRootProps()}
               className={`cursor-pointer rounded-xl px-8 py-3.5 font-medium transition-all shadow-lg ${
@@ -393,40 +389,73 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
             </button>
           </div>
 
-          <p className="text-xs text-zinc-500">
-            CSV · Excel · PDF · DOCX · TXT — sessions persist on the backend API
+          <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            Supports CSV, Excel, PDF, DOCX, TXT · Each chat is a persisted backend session
           </p>
         </section>
 
-        {/* Demo video */}
+        {/* Plain-English product flow */}
+        <section className="mb-20 md:mb-28" aria-labelledby="flow-heading">
+          <h2
+            id="flow-heading"
+            className="font-display text-xl sm:text-2xl font-semibold text-white text-center mb-2"
+          >
+            What you’re looking at
+          </h2>
+          <p className="text-sm text-zinc-500 text-center mb-10 max-w-2xl mx-auto leading-relaxed">
+            Three steps that map to the architecture: ingest → retrieve → answer. No jargon required
+            to try the demo; the labels in the app mirror how the backend works.
+          </p>
+          <div className="grid md:grid-cols-3 gap-4 lg:gap-6">
+            {[
+              {
+                title: '1 · Bring your file',
+                body: 'Upload or use sample data. The API parses and stores the document against your session.',
+              },
+              {
+                title: '2 · Ask a real question',
+                body: 'Plain English. The orchestrator may route to RAG (search your chunks), Q&A, summary, or verify.',
+              },
+              {
+                title: '3 · Read the answer',
+                body: 'Streaming replies. When retrieval runs, expand “sources” to see which text chunks were used.',
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-6 text-left h-full flex flex-col"
+              >
+                <h3 className="font-display text-sm font-semibold text-[#10a37f] mb-3">{item.title}</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed flex-1">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Product preview (visitors) — optional narrated video replaces GIF when configured in deploy */}
         <section id="demo" className="mb-24 md:mb-32 scroll-mt-28">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8 text-left">
-            <div>
-              <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-2">
-                See it in action
-              </h2>
-              <p className="text-zinc-400 max-w-xl">
-                Watch a short walkthrough, or use the loop below. Add your own narrated video with{' '}
-                <code className="text-[#10a37f] text-sm">NEXT_PUBLIC_DEMO_VIDEO_URL</code>.
-              </p>
-            </div>
-            <a
-              href={DEMO_PLAYBOOK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-[#10a37f] hover:text-[#5eead4] shrink-0"
-            >
-              <BookOpen className="w-4 h-4" />
-              Recording playbook
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+          <div className="text-center max-w-2xl mx-auto mb-10 px-2">
+            <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3">
+              See it in action
+            </h2>
+            <p className="text-zinc-400 text-sm md:text-base leading-relaxed">
+              {DEMO_VIDEO_URL ? (
+                <>Short walkthrough of the product.</>
+              ) : (
+                <>
+                  Preview of the workspace below — upload, chat, and answers grounded in your
+                  documents. Use <span className="text-zinc-300">Open workspace</span> above to try it
+                  live.
+                </>
+              )}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 overflow-hidden shadow-2xl shadow-black/40">
             {DEMO_VIDEO_URL ? (
               <div className="aspect-video w-full">
                 <iframe
-                  title="AgentFlow demo"
+                  title="AgentFlow demo video"
                   src={DEMO_VIDEO_URL}
                   className="w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -434,36 +463,42 @@ export function Landing({ onStart, onFileUpload, recentChats, onLoadChat }: Land
                 />
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-0 md:gap-8 p-6 md:p-10 items-center">
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/50">
+              <div className="grid lg:grid-cols-5">
+                <div className="lg:col-span-3 relative min-h-[220px] sm:min-h-[280px] md:aspect-video lg:aspect-auto lg:min-h-[340px] border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-black/30">
                   <Image
                     src="/media/demo.gif"
-                    alt="AgentFlow UI walkthrough animation"
+                    alt="Screen recording: AgentFlow chat workspace with document and messages"
                     fill
                     className="object-cover object-top"
                     unoptimized
                     priority
                   />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                    <div className="rounded-full bg-white/10 backdrop-blur-sm p-4 border border-white/20">
-                      <Play className="w-10 h-10 text-white" fill="currentColor" />
-                    </div>
-                  </div>
                 </div>
-                <div className="pt-8 md:pt-0">
-                  <h3 className="font-display text-xl font-semibold text-white mb-3">
-                    Add your demo video
-                  </h3>
-                  <p className="text-zinc-400 text-sm leading-relaxed mb-6">
-                    Upload a 2–4 minute screen recording to YouTube (unlisted works), then set the
-                    embed URL in your environment. Until then, visitors see this UI loop from the
-                    repo.
+                <div className="lg:col-span-2 p-6 sm:p-8 lg:p-10 flex flex-col justify-center text-left">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#10a37f] mb-2">
+                    What this preview shows
                   </p>
-                  <ol className="text-sm text-zinc-500 space-y-2 list-decimal list-inside">
-                    <li>Record: upload → question → optional System Insights</li>
-                    <li>Host on YouTube and copy the embed URL</li>
-                    <li>Set <code className="text-zinc-300">NEXT_PUBLIC_DEMO_VIDEO_URL</code></li>
-                  </ol>
+                  <h3 className="font-display text-lg sm:text-xl font-semibold text-white mb-4">
+                    The same flow you get in the live app
+                  </h3>
+                  <ul className="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                    <li className="flex gap-3">
+                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">01</span>
+                      <span>Work with business files (CSV, Excel, PDF, text).</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">02</span>
+                      <span>Ask questions in natural language — the backend retrieves relevant chunks, then replies.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">03</span>
+                      <span>Replies can include source passages so you see what the model used.</span>
+                    </li>
+                  </ul>
+                  <p className="text-xs text-zinc-600 mt-6 leading-relaxed border-t border-white/[0.06] pt-5">
+                    Shipped on purpose: a silent preview of the real UI. Replacing it with a narrated
+                    video is optional — steps are in the project repository for you when you want them.
+                  </p>
                 </div>
               </div>
             )}

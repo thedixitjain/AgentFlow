@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2, BarChart3 } from 'lucide-react'
+import { Plus, FileText, FileSpreadsheet, X, Upload, Home, MessageSquare, Trash2, BarChart3, Sparkles } from 'lucide-react'
 import { DocumentFile, ChatHistory } from '@/lib/types'
 import { formatFileSize } from '@/lib/utils'
 
@@ -35,6 +35,7 @@ export function Sidebar({
   onDeleteChat,
   onBackToHome,
   onOpenSystemInsights,
+  currentChatId,
 }: SidebarProps) {
   const processFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -179,19 +180,28 @@ export function Sidebar({
 
   return (
     <aside className="w-64 md:w-72 shrink-0 bg-[var(--sidebar-bg)] border-r border-white/[0.06] flex flex-col h-full">
-      {/* Header */}
-      <div className="p-3 flex items-center justify-between">
+      <div className="p-3 pb-2 border-b border-white/[0.05]">
+        <div className="flex items-center gap-2 px-1 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display text-sm font-semibold text-zinc-100 leading-tight">AgentFlow</p>
+            <p className="text-[10px] text-zinc-500 leading-snug">RAG workspace</p>
+          </div>
+        </div>
         <button
+          type="button"
           onClick={onBackToHome}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2f2f2f] transition-colors w-full"
+          className="flex items-center gap-2 w-full rounded-lg px-3 py-2 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.05] transition-colors text-left"
         >
-          <Home className="w-4 h-4" />
-          <span>Home</span>
+          <Home className="w-4 h-4 shrink-0" />
+          <span>Back to landing</span>
         </button>
       </div>
 
       {/* New Chat Button */}
-      <div className="px-3 pb-3">
+      <div className="px-3 pt-3 pb-3">
         <button
           onClick={onNewChat}
           className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#10a37f] hover:bg-[#0d8a6a] text-white text-sm font-medium transition-colors shadow-md shadow-[#10a37f]/15"
@@ -210,6 +220,9 @@ export function Sidebar({
 
       {/* Upload Area */}
       <div className="px-3 pb-3">
+        <p className="font-display text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2 px-1">
+          Data
+        </p>
         <div
           {...getRootProps()}
           className={`border border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
@@ -219,9 +232,12 @@ export function Sidebar({
           }`}
         >
           <input {...getInputProps()} />
-          <Upload className="w-5 h-5 mx-auto mb-2 text-[#8e8e8e]" />
-          <p className="text-xs text-[#8e8e8e]">
+          <Upload className="w-5 h-5 mx-auto mb-2 text-zinc-500" />
+          <p className="text-xs text-zinc-400 font-medium">
             {isDragActive ? 'Drop file here' : 'Upload CSV, Excel, PDF, TXT'}
+          </p>
+          <p className="text-[10px] text-zinc-600 mt-2 leading-relaxed">
+            Indexed on the server for retrieval
           </p>
         </div>
       </div>
@@ -231,16 +247,18 @@ export function Sidebar({
         {/* Documents */}
         {documents.length > 0 && (
           <div>
-            <p className="text-xs text-[#8e8e8e] mb-2 px-1 uppercase tracking-wide">Documents</p>
+            <p className="font-display text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2 px-1">
+              Active files
+            </p>
             <div className="space-y-1">
               {documents.map((doc) => (
                 <div
                   key={doc.name}
                   onClick={() => onSelectDocument(doc.name)}
-                  className={`group flex items-center gap-2 px-3 py-2 cursor-pointer transition-all ${
+                  className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all border border-transparent ${
                     activeDocument === doc.name 
-                      ? 'bg-[#2f2f2f] text-[#ececec]' 
-                      : 'text-[#b4b4b4] hover:bg-[#2f2f2f] hover:text-[#ececec]'
+                      ? 'bg-[#10a37f]/12 border-[#10a37f]/25 text-zinc-100' 
+                      : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100'
                   }`}
                 >
                   {doc.type === 'csv' || doc.type === 'xlsx' ? (
@@ -273,12 +291,18 @@ export function Sidebar({
         {/* Chat History */}
         {chatHistory.length > 0 && (
           <div>
-            <p className="text-xs text-[#8e8e8e] mb-2 px-1 uppercase tracking-wide">Recent Chats</p>
+            <p className="font-display text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2 px-1">
+              Sessions
+            </p>
             <div className="space-y-1">
               {chatHistory.slice(0, 10).map((chat) => (
                 <div
                   key={chat.id}
-                  className="group flex items-center gap-2 px-3 py-2 text-[#b4b4b4] hover:bg-[#2f2f2f] hover:text-[#ececec] cursor-pointer transition-all"
+                  className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all border border-transparent ${
+                    currentChatId === chat.id
+                      ? 'bg-[#10a37f]/10 border-[#10a37f]/20 text-zinc-100'
+                      : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100'
+                  }`}
                   onClick={() => onLoadChat(chat)}
                 >
                   <MessageSquare className="w-4 h-4 flex-shrink-0" />
@@ -306,8 +330,8 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="p-4 border-t border-white/[0.06]">
-        <p className="text-xs text-[#8e8e8e] text-center">
-          Persistent backend sessions with Groq
+        <p className="text-[10px] text-zinc-600 text-center leading-relaxed">
+          Sessions & vectors stored on the API · Groq inference
         </p>
       </div>
     </aside>

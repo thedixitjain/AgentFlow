@@ -366,6 +366,7 @@ export default function Home() {
         onSendMessage={handleSendMessage}
         hasDocument={!!activeDocument}
         documentName={activeDocument || undefined}
+        sessionId={currentChatId || undefined}
       />
 
       {showInsights && insights.length > 0 && (
