@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { SystemInsightsPanel } from '@/components/SystemInsightsPanel'
@@ -116,6 +117,7 @@ const recentEval: EvalRun = {
 }
 
 export default function ShowcaseInsightsPage() {
+  const router = useRouter()
   return (
     <div className="h-screen flex bg-[#212121]">
       <Sidebar
@@ -129,7 +131,7 @@ export default function ShowcaseInsightsPage() {
         onNewChat={() => undefined}
         onLoadChat={() => undefined}
         onDeleteChat={() => undefined}
-        onBackToHome={() => undefined}
+        onBackToHome={() => router.push('/')}
         onOpenSystemInsights={() => undefined}
       />
       <Chat

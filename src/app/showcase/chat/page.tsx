@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import type { ChatHistory, DocumentFile, Message } from '@/lib/types'
@@ -48,6 +49,7 @@ const messages: Message[] = [
 ]
 
 export default function ShowcaseChatPage() {
+  const router = useRouter()
   return (
     <div className="h-screen flex bg-[#212121]">
       <Sidebar
@@ -61,7 +63,7 @@ export default function ShowcaseChatPage() {
         onNewChat={() => undefined}
         onLoadChat={() => undefined}
         onDeleteChat={() => undefined}
-        onBackToHome={() => undefined}
+        onBackToHome={() => router.push('/')}
         onOpenSystemInsights={() => undefined}
       />
       <Chat

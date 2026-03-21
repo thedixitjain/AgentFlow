@@ -181,15 +181,20 @@ export function Sidebar({
   return (
     <aside className="w-64 md:w-72 shrink-0 bg-[var(--sidebar-bg)] border-r border-white/[0.06] flex flex-col h-full">
       <div className="p-3 pb-2 border-b border-white/[0.05]">
-        <div className="flex items-center gap-2 px-1 mb-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shrink-0">
+        <button
+          type="button"
+          onClick={onBackToHome}
+          className="group flex items-center gap-2 px-1 mb-2 w-full text-left rounded-lg py-1 -mx-0.5 hover:bg-white/[0.06] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+          aria-label="AgentFlow, go to landing page"
+        >
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#10a37f] to-[#0d8a6a] flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.02]">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold text-zinc-100 leading-tight">AgentFlow</p>
-            <p className="text-[10px] text-zinc-500 leading-snug">RAG workspace</p>
+            <p className="text-[10px] text-zinc-500 leading-snug group-hover:text-zinc-400">RAG workspace</p>
           </div>
-        </div>
+        </button>
         <button
           type="button"
           onClick={onBackToHome}
