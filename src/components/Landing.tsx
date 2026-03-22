@@ -483,7 +483,7 @@ export function Landing({
         </section>
 
         {/* Plain-English product flow */}
-        <section className="mb-20 md:mb-28" aria-labelledby="flow-heading">
+        <section className="animate-fade-in mb-20 md:mb-28" aria-labelledby="flow-heading">
           <h2
             id="flow-heading"
             className="font-display text-xl sm:text-2xl font-semibold text-white text-center mb-2"
@@ -521,7 +521,7 @@ export function Landing({
         </section>
 
         {/* Product preview (visitors): optional narrated video replaces GIF when configured in deploy */}
-        <section id="demo" className="mb-24 md:mb-32 scroll-mt-28">
+        <section id="demo" className="animate-fade-in mb-24 md:mb-32 scroll-mt-28">
           <div className="text-center max-w-2xl mx-auto mb-10 px-2">
             <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3">
               See it in action
@@ -539,7 +539,17 @@ export function Landing({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 overflow-hidden shadow-2xl shadow-black/40">
+          <div className="group/demo relative rounded-2xl border border-white/[0.08] bg-zinc-900/40 overflow-hidden shadow-2xl shadow-black/40 transition-all duration-700 hover:border-[#10a37f]/40 hover:shadow-[#10a37f]/10 translate-y-0 hover:-translate-y-1">
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 opacity-0 group-hover/demo:opacity-100 transition-all duration-500 translate-y-2 group-hover/demo:translate-y-0 shadow-xl">
+              <div className="relative flex h-2 w-2">
+                <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10a37f] opacity-75"></div>
+                <div className="relative inline-flex rounded-full h-2 w-2 bg-[#10a37f] shadow-[0_0_10px_#10a37f]"></div>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#10a37f]">System Demo</span>
+            </div>
+            
+            {/* Background glow effect on hover */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-[#10a37f]/0 via-[#10a37f]/5 to-[#10a37f]/0 opacity-0 group-hover/demo:opacity-100 transition-opacity duration-700 pointer-events-none" />
             {DEMO_VIDEO_URL ? (
               <div className="aspect-video w-full">
                 <iframe
@@ -554,10 +564,10 @@ export function Landing({
               <div className="grid lg:grid-cols-5">
                 <div className="lg:col-span-3 relative min-h-[220px] sm:min-h-[280px] md:aspect-video lg:aspect-auto lg:min-h-[340px] border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-black/30">
                   <Image
-                    src="/media/demo.gif"
+                    src="/media/demo.webp"
                     alt="Screen recording: AgentFlow chat workspace with document and messages"
                     fill
-                    className="object-cover object-top"
+                    className="object-cover object-top transition-transform duration-700 group-hover/demo:scale-[1.02]"
                     unoptimized
                     priority
                   />
@@ -594,7 +604,7 @@ export function Landing({
         </section>
 
         {/* Architecture */}
-        <section id="architecture" className="mb-24 md:mb-32 scroll-mt-28">
+        <section id="architecture" className="animate-fade-in mb-24 md:mb-32 scroll-mt-28">
           <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3 text-center">
             Production-style architecture
           </h2>
@@ -685,7 +695,7 @@ export function Landing({
         </section>
 
         {/* Features */}
-        <section id="features" className="mb-20 md:mb-28 scroll-mt-28">
+        <section id="features" className="animate-fade-in mb-20 md:mb-28 scroll-mt-28">
           <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-10 text-center">
             Built for real workflows
           </h2>
@@ -715,7 +725,7 @@ export function Landing({
         </section>
 
         {/* How it works */}
-        <section id="how-it-works" className="mb-20 md:mb-28 scroll-mt-28">
+        <section id="how-it-works" className="animate-fade-in mb-20 md:mb-28 scroll-mt-28">
           <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
             How it works
           </h2>
@@ -748,7 +758,7 @@ export function Landing({
         </section>
 
         {/* Agents */}
-        <section id="agents" className="mb-16 md:mb-24 scroll-mt-28">
+        <section id="agents" className="animate-fade-in mb-16 md:mb-24 scroll-mt-28">
           <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
             Agent roster
           </h2>
