@@ -120,10 +120,17 @@ export async function getUploadErrorMessage(
   }
 
   try {
-    const parsed = JSON.parse(text) as { error?: string }
+    const parsed = JSON.parse(text) as { error?: string; hint?: string }
     if (parsed.error) {
-      const friendlyMessage = toUserFacingAppError(parsed.error, fallback)
-      return friendlyMessage === CHAT_CONNECTION_ERROR_MESSAGE ? fallback : friendlyMessage
+      const combined = parsed.hint ? `${parsed.error} ${parsed.hint}` : parsed.error
+      const trimmed = combined.trim()
+      if (CONNECTION_ERROR_PATTERN.test(trimmed)) {
+        return fallback
+      }
+      if (looksTechnicalError(trimmed)) {
+        return toUserFacingAppError(parsed.error, fallback)
+      }
+      return trimmed.length <= 400 ? trimmed : `${parsed.error.trim().slice(0, 240)}…`
     }
   } catch {
     // Ignore invalid JSON and fall back to the raw response text below.

@@ -160,6 +160,19 @@ async function runBusinessUxTests() {
   )
   assert.equal(friendlyUploadFailure, 'This file is empty.')
 
+  const withHint = await getUploadErrorMessage(
+    new Response(
+      JSON.stringify({
+        error: 'Classic Word .doc format is not supported here.',
+        hint: 'Save as .docx and upload again.',
+      }),
+      { status: 415, headers: { 'Content-Type': 'application/json' } },
+    ),
+    'We could not upload this file.',
+  )
+  assert.ok(withHint.includes('Classic Word'))
+  assert.ok(withHint.includes('docx'))
+
   assert.equal(
     toUserFacingAppError(new Error('Failed to fetch'), 'fallback'),
     CHAT_CONNECTION_ERROR_MESSAGE,

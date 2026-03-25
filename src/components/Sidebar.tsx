@@ -142,7 +142,7 @@ export function Sidebar({
         return
       }
 
-      if (ext === 'docx' || ext === 'doc') {
+      if (ext === 'docx' || ext === 'docm' || ext === 'doc') {
         const formData = new FormData()
         formData.append('file', file)
 
@@ -153,7 +153,7 @@ export function Sidebar({
 
         if (!response.ok) {
           await showUploadError(
-            `We couldn't upload ${readableFileName}. Please try another Word file or export it as text.`,
+            `We couldn't read ${readableFileName}. For Word, use .docx (Save As in Word or Google Docs).`,
             response,
           )
           return
@@ -195,6 +195,7 @@ export function Sidebar({
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
       'application/msword': ['.doc'],
       'application/vnd.ms-powerpoint': ['.ppt'],
@@ -330,7 +331,7 @@ export function Sidebar({
             <p className="text-xs text-zinc-400">
               {isDragActive ? 'Drop to upload' : 'Upload or drop a file'}
             </p>
-            <p className="text-[10px] text-zinc-600 mt-1">CSV, Excel, PDF, Word, text</p>
+            <p className="text-[10px] text-zinc-600 mt-1">CSV, Excel, PDF, .docx, text</p>
           </div>
           <p className="text-[10px] text-zinc-600 mt-2 px-0.5">
             Try a sample:{' '}

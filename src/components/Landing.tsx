@@ -154,7 +154,7 @@ export function Landing({
         return
       }
 
-      if (ext === 'docx' || ext === 'doc') {
+      if (ext === 'docx' || ext === 'docm' || ext === 'doc') {
         const formData = new FormData()
         formData.append('file', file)
         const response = await fetch('/api/parse-docx', { method: 'POST', body: formData })
@@ -162,7 +162,7 @@ export function Landing({
           onUploadError(
             await getUploadErrorMessage(
               response,
-              `We couldn't upload ${readableFileName}. Please try another Word file or export it as text.`,
+              `We couldn't read ${readableFileName}. For Word, use .docx (Save As in Word or Google Docs).`,
             ),
           )
           return
@@ -201,6 +201,7 @@ export function Landing({
       'text/csv': ['.csv'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
       'application/msword': ['.doc'],
       'application/vnd.ms-powerpoint': ['.ppt'],
