@@ -10,10 +10,13 @@ import {
   ArrowRight,
   Bot,
   CheckCircle2,
+  Database,
   FileText,
   Loader2,
   Menu,
   PlayCircle,
+  Search,
+  ShieldCheck,
   Sparkles,
   Upload,
   Workflow,
@@ -46,6 +49,64 @@ interface LandingProps {
   configWarning: boolean
   persistenceStatus: PersistenceStatus | null
 }
+
+// ─── Agent pipeline data ──────────────────────────────────────────────────
+const AGENTS = [
+  {
+    key: 'orchestrator',
+    icon: <Zap className="w-4 h-4" />,
+    color: '#10a37f',
+    name: 'Orchestrator',
+    desc: 'Routes each query to the right agent based on intent.',
+  },
+  {
+    key: 'ingest',
+    icon: <Database className="w-4 h-4" />,
+    color: '#3b82f6',
+    name: 'Ingest',
+    desc: 'Parses and chunks your document into a searchable index.',
+  },
+  {
+    key: 'question',
+    icon: <Bot className="w-4 h-4" />,
+    color: '#8b5cf6',
+    name: 'Retrieval',
+    desc: 'Runs semantic search to find the most relevant passages.',
+  },
+  {
+    key: 'verifier',
+    icon: <Search className="w-4 h-4" />,
+    color: '#f59e0b',
+    name: 'Verifier',
+    desc: 'Cross-checks the answer against source chunks for accuracy.',
+  },
+  {
+    key: 'summarizer',
+    icon: <FileText className="w-4 h-4" />,
+    color: '#ec4899',
+    name: 'Summarizer',
+    desc: 'Packages findings into a structured, shareable decision brief.',
+  },
+]
+
+// ─── Step data ────────────────────────────────────────────────────────────
+const HOW_IT_WORKS = [
+  {
+    step: '01',
+    title: 'Upload any business file',
+    body: 'Drop a CSV, Excel sheet, PDF, Word doc, or plain text. Structured or unstructured—both work.',
+  },
+  {
+    step: '02',
+    title: 'Ask in plain language',
+    body: 'Ask about trends, risks, key metrics, or request a one-page summary for leadership.',
+  },
+  {
+    step: '03',
+    title: 'Get decisions, not just answers',
+    body: 'Every response is grounded in your document and packaged into a brief you can actually share.',
+  },
+]
 
 export function Landing({
   onStart,
@@ -182,6 +243,7 @@ export function Landing({
         })
         return
       }
+
       onUploadError('That file type is not supported yet. Please upload CSV, Excel, PDF, Word, PowerPoint, or text.')
     } catch (error) {
       onUploadError(
@@ -216,31 +278,35 @@ export function Landing({
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const isDisabled = Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading
+
   const navItems = [
-    { id: 'product', label: 'Product' },
-    { id: 'use-cases', label: 'Use cases' },
-    { id: 'trust', label: 'Trust' },
+    { id: 'how-it-works', label: 'How it works' },
+    { id: 'agents', label: 'Architecture' },
+    { id: 'use-cases', label: 'Templates' },
   ]
 
   return (
     <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 relative overflow-hidden">
+      {/* Background layers */}
       <div className="pointer-events-none fixed inset-0 bg-mesh-hero" aria-hidden />
       <div className="pointer-events-none fixed inset-0 bg-grid-faint opacity-40" aria-hidden />
 
+      {/* ─── Nav ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
-            aria-label="AgentFlow, scroll to top"
+            aria-label="AgentFlow — scroll to top"
           >
-            <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
               <Image src="/logo.png" alt="AgentFlow logo" fill className="object-cover" />
             </div>
             <div>
-              <p className="font-display text-lg font-semibold tracking-tight">AgentFlow</p>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 hidden sm:block">AI workspace</p>
+              <p className="font-display text-base font-semibold tracking-tight">AgentFlow</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 hidden sm:block">Multi-Agent AI</p>
             </div>
           </button>
 
@@ -257,14 +323,21 @@ export function Landing({
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => scrollToSection('use-cases')}
+              className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              Browse templates
+            </button>
             <button
               type="button"
               onClick={() => void handleOpenWorkspace()}
-              disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
-              className="rounded-lg bg-[#10a37f] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-50"
+              disabled={isDisabled}
+              className="rounded-lg bg-[#10a37f] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-50"
             >
-              Open workspace
+              {isOpeningWorkspace ? 'Opening…' : 'Open workspace'}
             </button>
           </div>
 
@@ -294,8 +367,8 @@ export function Landing({
               <button
                 type="button"
                 onClick={() => void handleOpenWorkspace()}
-                disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
-                className="rounded-lg px-3 py-3 text-left text-zinc-100 hover:bg-white/[0.05] disabled:opacity-50"
+                disabled={isDisabled}
+                className="mt-1 rounded-lg bg-[#10a37f] px-3 py-3 text-left text-sm font-medium text-white hover:bg-[#0d8a6a] disabled:opacity-50"
               >
                 Open workspace
               </button>
@@ -304,10 +377,11 @@ export function Landing({
         )}
       </header>
 
+      {/* ─── Config warning ───────────────────────────────────────────────── */}
       {configWarning && (
         <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 pt-4">
           <div className="rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-sm text-amber-100/95">
-            <p className="font-medium text-amber-50">We can’t reach the AgentFlow API from this environment.</p>
+            <p className="font-medium text-amber-50">The AgentFlow API isn't reachable from this environment.</p>
             <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
               Check that the backend is running and that your app is pointed at the correct API URL. You can still browse the interface.
             </p>
@@ -315,6 +389,7 @@ export function Landing({
         </div>
       )}
 
+      {/* ─── Error banner ─────────────────────────────────────────────────── */}
       {errorMessage && (
         <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 pt-4">
           <div className="flex items-start gap-3 rounded-xl border border-red-500/35 bg-red-950/60 px-4 py-3 text-sm text-red-100">
@@ -332,243 +407,316 @@ export function Landing({
         </div>
       )}
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-16 pb-16 space-y-24">
-        <section className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 pb-16 space-y-28">
+
+        {/* ─── Hero ─────────────────────────────────────────────────────── */}
+        <section className="grid lg:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10 px-4 py-1.5 text-xs font-medium text-[#5eead4]">
-              <Sparkles className="w-3.5 h-3.5" />
-              Business Review Copilot
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#10a37f]/30 bg-[#10a37f]/10 px-3.5 py-1.5 text-xs font-medium text-[#5eead4]">
+              <Sparkles className="w-3 h-3" />
+              Multi-Agent Document Intelligence
             </div>
-            <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.05] tracking-tight">
-              Turn weekly business reports into action plans.
+
+            <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-[3.5rem] font-semibold leading-[1.08] tracking-tight text-white">
+              Turn business documents into decisions.
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-zinc-400 leading-relaxed">
-              Upload sales, support, or operations updates and get a leadership-ready summary, risks, and recommended actions in minutes.
+
+            <p className="mt-5 max-w-lg text-lg text-zinc-400 leading-relaxed">
+              Five specialized AI agents handle retrieval, verification, and summarization—so every answer is grounded in your actual data, not hallucinated.
             </p>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => void handleOpenWorkspace()}
-                disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
+                disabled={isDisabled}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#10a37f] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-60"
               >
-                {isOpeningWorkspace ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                Start for Free
+                {isOpeningWorkspace ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="w-4 h-4" />
+                )}
+                Open workspace
               </button>
               <button
                 type="button"
-                onClick={() => scrollToSection('demo')}
-                disabled={isOpeningWorkspace || Boolean(isLoadingTemplate) || isUploading}
+                onClick={() => scrollToSection('use-cases')}
+                disabled={isDisabled}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.03] px-5 py-3 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.06] disabled:opacity-60"
               >
                 <ArrowRight className="w-4 h-4 text-[#5eead4]" />
-                Book a Demo
+                Browse templates
               </button>
             </div>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            {/* Trust micro-row */}
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2">
               {[
-                { title: 'Leadership summaries', body: 'Generate decision-ready updates from the reports your team already creates every week.' },
-                { title: 'Faster iteration', body: 'Start from templates, upload a document, and get to value in minutes.' },
-                { title: 'Actionable outputs', body: 'Move from raw files and chat answers to risks, actions, and follow-up questions.' },
+                'No prompt engineering needed',
+                'Answers cite your document',
+                'Exportable decision briefs',
               ].map((item) => (
-                <div key={item.title} className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4">
-                  <p className="text-sm font-medium text-zinc-100">{item.title}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">{item.body}</p>
+                <div key={item} className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10a37f]" />
+                  {item}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-white/[0.08] bg-zinc-950/70 p-5 shadow-2xl shadow-black/40">
+          {/* ─── Upload zone card ─────────────────────────────────────── */}
+          <div className="rounded-[28px] border border-white/[0.09] bg-zinc-950/80 p-5 shadow-2xl shadow-black/50 backdrop-blur">
             <div
               {...getRootProps()}
-              className={`rounded-2xl border border-dashed px-5 py-6 text-center transition-all ${
-                isDragActive ? 'border-[#10a37f] bg-[#10a37f]/10' : 'border-white/[0.12] bg-zinc-900/60 hover:border-[#10a37f]/35'
+              className={`rounded-2xl border border-dashed px-5 py-8 text-center cursor-pointer transition-all ${
+                isDragActive
+                  ? 'border-[#10a37f] bg-[#10a37f]/10'
+                  : 'border-white/[0.12] bg-zinc-900/50 hover:border-[#10a37f]/40 hover:bg-zinc-900/80'
               }`}
             >
               <input {...getInputProps()} />
-              <Upload className="mx-auto w-6 h-6 text-[#10a37f]" />
-              <p className="mt-3 text-sm font-medium text-zinc-100">{isDragActive ? 'Drop a file to open the workspace' : 'Upload a business file to get started'}</p>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-500">CSV, Excel, PDF, DOCX, or text files work out of the box.</p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white text-zinc-900 px-3 py-1.5 text-xs font-medium">
+              <div className="w-10 h-10 mx-auto rounded-xl bg-[#10a37f]/15 flex items-center justify-center mb-3">
+                <Upload className="w-5 h-5 text-[#10a37f]" />
+              </div>
+              <p className="text-sm font-medium text-zinc-100">
+                {isDragActive ? 'Drop to open workspace' : 'Upload a document'}
+              </p>
+              <p className="mt-1.5 text-xs text-zinc-500">CSV, Excel, PDF, DOCX, or plain text</p>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white text-zinc-900 px-3 py-1.5 text-xs font-medium shadow-sm">
                 {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                 {isUploading ? 'Loading workspace…' : 'Drop file or click to upload'}
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">What teams get</p>
-              <div className="mt-3 space-y-3">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
-                  <p className="text-sm text-zinc-300">Plain-language Q&amp;A on your files: summaries, risks, and next steps without a manual.</p>
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-zinc-900/40 p-4 space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-600">What you get</p>
+              {[
+                { icon: <CheckCircle2 className="w-4 h-4 text-[#10a37f]" />, text: 'Plain-language Q&A grounded in your file' },
+                { icon: <Workflow className="w-4 h-4 text-[#10a37f]" />, text: 'Exportable decision brief with risks and actions' },
+              ].map((row) => (
+                <div key={row.text} className="flex items-start gap-3">
+                  <div className="mt-0.5 shrink-0">{row.icon}</div>
+                  <p className="text-sm text-zinc-300">{row.text}</p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Workflow className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
-                  <p className="text-sm text-zinc-300">Pick up where you left off: recent sessions and documents load when you return.</p>
+              ))}
+
+              {persistenceStatus && (
+                <div className="rounded-xl border border-white/[0.07] bg-black/20 px-3 py-2.5 mt-1">
+                  <p className="text-xs font-medium text-zinc-300">
+                    {persistenceStatus.mode === 'database-ready'
+                      ? 'Your workspace syncs to the server.'
+                      : 'Workspace saved on this device.'}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-600">
+                    {persistenceStatus.mode === 'database-ready'
+                      ? 'Open from another device on the same account to continue.'
+                      : 'Clearing site data starts a fresh workspace.'}
+                  </p>
                 </div>
-                {persistenceStatus && (
-                  <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-3">
-                    <p className="text-xs font-medium text-zinc-100">
-                      {persistenceStatus.mode === 'database-ready'
-                        ? 'Your workspace syncs to the server.'
-                        : 'Your workspace is saved on this device'}
-                    </p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                      {persistenceStatus.mode === 'database-ready'
-                        ? 'Open AgentFlow from another browser or device signed into the same account to continue.'
-                        : 'Clearing site data or using another device starts a fresh workspace until cloud sync is enabled.'}
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </section>
 
-        <section id="product" className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: Bot,
-              title: 'Decision-ready chat',
-              body: 'Teams ask questions in plain language and get business-ready answers instead of generic AI chatter.',
-            },
-            {
-              icon: Zap,
-              title: 'Template-driven onboarding',
-              body: 'Move new users past the blank screen with ready-made starting points for sales, support, and content work.',
-            },
-            {
-              icon: FileText,
-              title: 'Clear business outputs',
-              body: 'Summaries, risks, actions, and follow-up questions are packaged in a format leaders can use quickly.',
-            },
-          ].map(({ icon: Icon, title, body }) => (
-            <div key={title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
-              <div className="w-11 h-11 rounded-2xl bg-[#10a37f]/12 text-[#10a37f] flex items-center justify-center">
-                <Icon className="w-5 h-5" />
-              </div>
-              <h2 className="mt-5 font-display text-xl font-semibold text-white">{title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{body}</p>
-            </div>
-          ))}
-        </section>
-
-        <section id="demo" className="max-w-3xl">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">How it works</p>
-          <h2 className="mt-3 font-display text-3xl font-semibold text-white">Upload once, then ask anything your leadership would ask.</h2>
-          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-            You get answers grounded in your spreadsheet, PDF, or brief, plus a decision brief you can share. No slide deck required for the first conversation.
-          </p>
-          <div className="mt-6 space-y-3">
-            {[
-              'Drop a CSV, Excel export, PDF, or Word doc, or start from a template with sample data.',
-              'Ask in normal language: trends, risks, follow-ups, or a one-page summary for execs.',
-              'Open the workspace anytime; your session picks up with the same files and chat history.',
-            ].map((line) => (
-              <div key={line} className="flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
-                <p className="text-sm text-zinc-300">{line}</p>
+        {/* ─── How it works ─────────────────────────────────────────────── */}
+        <section id="how-it-works">
+          <div className="max-w-xl mb-10">
+            <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">How it works</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">
+              Upload once, then ask anything your leadership would ask.
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {HOW_IT_WORKS.map(({ step, title, body }) => (
+              <div key={step} className="relative rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 group hover:border-white/[0.14] transition-colors">
+                <p className="font-display text-4xl font-bold text-zinc-800 group-hover:text-zinc-700 transition-colors">{step}</p>
+                <h3 className="mt-4 text-base font-semibold text-white">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-400">{body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="use-cases">
-          <div className="max-w-2xl">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Use cases</p>
-            <h2 className="mt-3 font-display text-3xl font-semibold text-white">Support, revenue, and GTM, each with a ready-made starting file.</h2>
+        {/* ─── Agent architecture ───────────────────────────────────────── */}
+        <section id="agents">
+          <div className="max-w-xl mb-10">
+            <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Architecture</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">
+              Five agents. One pipeline. Every answer is verified.
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              Rather than a single model doing everything, AgentFlow routes each query through a chain of specialized agents—each responsible for one job and doing it well.
+            </p>
           </div>
-          <div className="mt-8 grid md:grid-cols-3 gap-5">
+
+          {/* Desktop: horizontal pipeline */}
+          <div className="hidden md:grid md:grid-cols-5 gap-0 relative">
+            {/* Connector line */}
+            <div className="absolute top-[2.25rem] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-zinc-700 to-transparent" aria-hidden />
+            {AGENTS.map((agent, i) => (
+              <div key={agent.key} className="flex flex-col items-center text-center px-2 relative">
+                <div
+                  className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center mb-4 shadow-lg"
+                  style={{ backgroundColor: `${agent.color}1a`, boxShadow: `0 0 0 1px ${agent.color}30` }}
+                >
+                  <span style={{ color: agent.color }}>{agent.icon}</span>
+                  {i < AGENTS.length - 1 && (
+                    <div
+                      className="absolute -right-[calc(50%+0.375rem)] top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-20"
+                      aria-hidden
+                    >
+                      <ArrowRight className="w-3 h-3 text-zinc-600" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm font-semibold text-zinc-100">{agent.name}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{agent.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile: vertical list */}
+          <div className="md:hidden space-y-3">
+            {AGENTS.map((agent, i) => (
+              <div key={agent.key} className="flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4">
+                <div
+                  className="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${agent.color}1a`, boxShadow: `0 0 0 1px ${agent.color}30` }}
+                >
+                  <span style={{ color: agent.color }}>{agent.icon}</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-zinc-100">{agent.name}</p>
+                    <span className="text-[10px] text-zinc-600 font-medium">0{i + 1}</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{agent.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Feature cards ────────────────────────────────────────────── */}
+        <section id="product" className="grid gap-5 md:grid-cols-3">
+          {[
+            {
+              icon: Bot,
+              color: '#10a37f',
+              title: 'Grounded answers',
+              body: 'Every response traces back to a passage in your file. No hallucinations, no generic AI filler.',
+            },
+            {
+              icon: Zap,
+              color: '#8b5cf6',
+              title: 'Template-driven start',
+              body: 'Skip the blank-page problem with pre-loaded sample files for sales, support, and content work.',
+            },
+            {
+              icon: FileText,
+              color: '#3b82f6',
+              title: 'Shareable decision briefs',
+              body: 'Generate a structured summary with highlights, risks, actions, and follow-up questions in one click.',
+            },
+          ].map(({ icon: Icon, color, title, body }) => (
+            <div key={title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 hover:border-white/[0.14] transition-colors">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
+                style={{ backgroundColor: `${color}18` }}
+              >
+                <Icon className="w-5 h-5" style={{ color }} />
+              </div>
+              <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
+              <p className="mt-2.5 text-sm leading-relaxed text-zinc-400">{body}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* ─── Use cases / Templates ────────────────────────────────────── */}
+        <section id="use-cases">
+          <div className="max-w-xl mb-10">
+            <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Templates</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">
+              Start with real data. Ask a real question.
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              Every template loads a sample document into your workspace so the first question already feels like a real ops or sales review.
+            </p>
+          </div>
+
+          <div className="mt-2 grid md:grid-cols-3 gap-5">
             {[
               {
-                title: 'Customer Support Bot',
-                body: 'Turn a support brief into priority queues, escalation plans, and grounded response drafts.',
-                templateId: 'support-copilot' as WorkspaceTemplateId,
+                title: 'Sales Analyst',
+                body: 'Load structured revenue data and surface KPIs, trends, and next actions for leadership.',
+                templateId: 'sales-analyst' as WorkspaceTemplateId,
+                color: '#10a37f',
               },
               {
-                title: 'Data Extraction Pipeline',
-                body: 'Load structured revenue data and surface metrics, risks, and next actions for leadership.',
-                templateId: 'sales-analyst' as WorkspaceTemplateId,
+                title: 'Support Copilot',
+                body: 'Turn a support brief into priority queues, escalation plans, and grounded response drafts.',
+                templateId: 'support-copilot' as WorkspaceTemplateId,
+                color: '#3b82f6',
               },
               {
                 title: 'Content Writer',
                 body: 'Start from a campaign brief and generate launch messaging with a reusable agent workflow.',
                 templateId: 'content-writer' as WorkspaceTemplateId,
+                color: '#8b5cf6',
               },
             ].map((card) => (
-              <div key={card.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
-                <h3 className="font-display text-xl font-semibold text-white">{card.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-400">{card.body}</p>
+              <div
+                key={card.title}
+                className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 hover:border-white/[0.14] transition-colors flex flex-col"
+              >
+                <div
+                  className="w-2 h-2 rounded-full mb-5"
+                  style={{ backgroundColor: card.color }}
+                />
+                <h3 className="font-display text-lg font-semibold text-white">{card.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-zinc-400 flex-1">{card.body}</p>
                 <button
                   type="button"
                   onClick={() => void handleLoadTemplate(card.templateId)}
-                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#5eead4] hover:text-white transition-colors"
+                  disabled={isDisabled && isLoadingTemplate !== card.templateId}
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#5eead4] hover:text-white transition-colors disabled:opacity-50"
                 >
-                  Load this template
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoadingTemplate === card.templateId ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4" />
+                  )}
+                  {isLoadingTemplate === card.templateId ? 'Loading…' : 'Load this template'}
                 </button>
               </div>
             ))}
           </div>
-        </section>
 
-        <section id="trust" className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] items-start">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Trust &amp; privacy</p>
-            <h2 className="mt-3 font-display text-3xl font-semibold text-white">Your documents stay yours, and answers trace back to them.</h2>
-            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-              Teams evaluating AI for internal reports need to know who can see data and how answers are grounded. This section is here for that conversation; details are summarized on the Security page.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                title: 'Scoped access',
-                body: 'Optional Google sign-in keeps workspaces separated per account when enabled in your deployment.',
-              },
-              {
-                title: 'Saved work',
-                body: 'Sessions and uploads persist so you are not re-uploading the same file every visit.',
-              },
-              {
-                title: 'Reviewable output',
-                body: 'Responses can cite the files you uploaded so reviewers can sanity-check before anything goes to leadership.',
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
-                <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-400">{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-[32px] border border-white/[0.08] bg-gradient-to-br from-[#10a37f]/12 via-zinc-900/70 to-zinc-950 px-6 py-8 sm:px-8 sm:py-10">
-          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] items-center">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Start from a template</p>
-              <h2 className="mt-3 font-display text-3xl font-semibold text-white">Skip the blank page: open a realistic sample and chat right away.</h2>
-              <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-                Every template loads real rows or text into your workspace so the first question you ask already feels like a weekly ops or sales review.
-              </p>
-            </div>
-            <div className="grid gap-3">
+          {/* Full template picker */}
+          <div className="mt-8 rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-[#10a37f]/10 via-zinc-900/60 to-zinc-950 px-6 py-7 sm:px-8">
+            <p className="text-sm font-semibold text-zinc-200">All templates</p>
+            <p className="mt-1 text-xs text-zinc-500">Pick one and start exploring right away.</p>
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
               {WORKSPACE_TEMPLATES.map((template) => (
                 <button
                   key={template.id}
                   type="button"
                   onClick={() => void handleLoadTemplate(template.id)}
-                  className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4 text-left transition-colors hover:bg-black/35 hover:border-[#10a37f]/30"
+                  disabled={isDisabled}
+                  className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3.5 text-left transition-colors hover:bg-black/35 hover:border-[#10a37f]/30 disabled:opacity-50"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-zinc-100">{template.name}</p>
-                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{template.description}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-100 truncate">{template.name}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 line-clamp-2">{template.description}</p>
                     </div>
-                    {isLoadingTemplate === template.id ? <Loader2 className="w-4 h-4 animate-spin text-[#10a37f]" /> : <ArrowRight className="w-4 h-4 text-[#10a37f]" />}
+                    {isLoadingTemplate === template.id ? (
+                      <Loader2 className="w-4 h-4 shrink-0 animate-spin text-[#10a37f]" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4 shrink-0 text-zinc-600" />
+                    )}
                   </div>
                 </button>
               ))}
@@ -576,9 +724,65 @@ export function Landing({
           </div>
         </section>
 
+        {/* ─── Trust ────────────────────────────────────────────────────── */}
+        <section id="trust" className="grid gap-8 lg:grid-cols-[1fr_1fr] items-start">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Privacy &amp; security</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">
+              Your documents stay yours.
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400 max-w-sm">
+              Workspaces are scoped per account when Google sign-in is enabled. Answers always trace back to the file you uploaded—no data leaves your deployment.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a href="/privacy" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors">
+                Privacy policy <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+              <a href="/security" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors">
+                Security details <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            {[
+              {
+                icon: <ShieldCheck className="w-4 h-4" />,
+                color: '#10a37f',
+                title: 'Scoped access',
+                body: 'Google sign-in keeps each account\'s workspace separate.',
+              },
+              {
+                icon: <Workflow className="w-4 h-4" />,
+                color: '#3b82f6',
+                title: 'Persistent sessions',
+                body: 'Your files and chat history survive a page refresh.',
+              },
+              {
+                icon: <CheckCircle2 className="w-4 h-4" />,
+                color: '#8b5cf6',
+                title: 'Citable answers',
+                body: 'Every response shows which passages it drew from.',
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center mb-3"
+                  style={{ backgroundColor: `${item.color}18` }}
+                >
+                  <span style={{ color: item.color }}>{item.icon}</span>
+                </div>
+                <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-400">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Recent chats ─────────────────────────────────────────────── */}
         {recentChats.length > 0 && (
           <section>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Continue working</p>
+            <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Continue working</p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               {recentChats.map((chat) => (
                 <button
@@ -587,8 +791,10 @@ export function Landing({
                   onClick={() => void onLoadChat(chat)}
                   className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4 text-left transition-colors hover:border-[#10a37f]/25 hover:bg-zinc-900/60"
                 >
-                  <p className="text-sm font-medium text-white truncate">{toReadableConversationTitle(chat.title)}</p>
-                  <p className="mt-2 text-xs text-zinc-500">{chat.messages.length} messages</p>
+                  <p className="text-sm font-medium text-white truncate">
+                    {toReadableConversationTitle(chat.title)}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-600">{chat.messages.length} messages</p>
                 </button>
               ))}
             </div>
@@ -596,17 +802,31 @@ export function Landing({
         )}
       </main>
 
+      {/* ─── Footer ───────────────────────────────────────────────────────── */}
       <footer className="relative z-10 border-t border-white/[0.06] px-4 sm:px-6 lg:px-8 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 text-sm text-zinc-500">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <p className="text-zinc-300">AgentFlow</p>
-            <p className="mt-1 text-xs">Turn weekly business documents into summaries, risks, and actions your team can act on.</p>
+            <p className="text-sm font-semibold text-zinc-200">AgentFlow</p>
+            <p className="mt-1 text-xs text-zinc-600 max-w-xs">
+              Multi-agent document intelligence — built with LangGraph, RAG pipelines, and Next.js.
+            </p>
+            <p className="mt-2 text-xs text-zinc-700">
+              Built by{' '}
+              <a
+                href={LINKEDIN_PROFILE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Dixit Jain
+              </a>
+            </p>
           </div>
-          <div className="flex flex-wrap gap-6">
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="/security" className="hover:text-white transition-colors">Security &amp; data</a>
-            <a href={GITHUB_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
-            <a href={LINKEDIN_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">LinkedIn</a>
+          <div className="flex flex-wrap gap-5 text-sm text-zinc-600">
+            <a href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy</a>
+            <a href="/security" className="hover:text-zinc-300 transition-colors">Security</a>
+            <a href={GITHUB_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>
+            <a href={LINKEDIN_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">LinkedIn</a>
           </div>
         </div>
       </footer>
