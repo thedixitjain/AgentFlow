@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ClipboardList, Copy, Download, RefreshCcw, Sparkles, X } from 'lucide-react'
+import { ClipboardList, Copy, Download, RefreshCcw, X } from 'lucide-react'
 import type { WorkspaceReport } from '@/lib/api'
 import { buildBusinessReportMarkdown, downloadBusinessReport } from '@/lib/reporting'
 import { toReadableDocumentName } from '@/lib/businessUx'
@@ -52,11 +52,9 @@ export function BusinessReportPanel({
           )}
           <div className="flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-[#10a37f]" />
-            <p className="text-sm font-semibold text-[#ececec]">Decision Brief</p>
+            <p className="text-sm font-semibold text-[#ececec]">Brief</p>
           </div>
-          <p className="text-xs text-[#8e8e8e]">
-            Turn the latest workspace context into an executive-ready summary, risks, and actions.
-          </p>
+          <p className="text-xs text-[#8e8e8e]">Summary, risks, and suggested actions from this chat.</p>
         </div>
         <button onClick={onClose} className="p-1.5 hover:bg-[#2f2f2f] transition-colors">
           <X className="w-4 h-4 text-[#8e8e8e]" />
@@ -142,14 +140,11 @@ export function BusinessReportPanel({
             ))}
           </>
         ) : (
-          <section className="rounded-2xl border border-dashed border-white/[0.08] bg-zinc-900/30 p-5 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10a37f]/10 text-[#10a37f]">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <p className="mt-4 text-sm font-medium text-zinc-100">Create a decision-ready brief</p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-              Generate a concise report with executive summary, risks, actions, and follow-up questions for
-              {activeDocument ? ` ${toReadableDocumentName(activeDocument)}` : ' this workspace'}.
+          <section className="rounded-xl border border-white/[0.06] bg-zinc-900/25 p-5 text-center">
+            <p className="text-sm text-zinc-400">
+              {activeDocument
+                ? `Generate a brief from ${toReadableDocumentName(activeDocument)} and this chat.`
+                : 'Generate a brief from this chat when you are ready.'}
             </p>
           </section>
         )}
@@ -159,7 +154,7 @@ export function BusinessReportPanel({
         <p className="text-xs text-zinc-500">
           {reportCount > 0
             ? `${reportCount} brief${reportCount === 1 ? '' : 's'} saved in this workspace.`
-            : 'No saved decision brief yet.'}
+            : 'No brief saved yet.'}
         </p>
       </div>
     </div>

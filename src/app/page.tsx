@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { AlertCircle, X } from 'lucide-react'
-import { signIn, signOut, useSession } from 'next-auth/react'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
@@ -67,7 +66,6 @@ function mapSessionToHistory(session: Session): ChatHistory {
 }
 
 export default function Home() {
-  const { data: session, status: authStatus } = useSession()
   const [documents, setDocuments] = useState<DocumentFile[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -88,14 +86,12 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [toast, setToast] = useState<AppToastState | null>(null)
   const [persistenceStatus, setPersistenceStatus] = useState<PersistenceStatus | null>(null)
-  const previousAuthIdentity = useRef<string | null | undefined>(undefined)
-
-  const authUser = session?.user ?? null
-  const authIdentity = authUser?.email?.toLowerCase() ?? null
-  const isGoogleAuthConfigured = process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true'
-
   useEffect(() => {
     setConfigWarning(isProductionApiLikelyMisconfigured())
+  }, [])
+
+  useEffect(() => {
+    syncWorkspaceIdentity(null)
   }, [])
 
   const pushToast = useCallback((message: string, tone: AppToastState['tone'] = 'info') => {
@@ -155,44 +151,6 @@ export default function Home() {
       console.error('Failed to refresh sessions:', error)
     }
   }, [])
-
-  useEffect(() => {
-    if (authStatus === 'loading') {
-      return
-    }
-
-    syncWorkspaceIdentity(authIdentity)
-
-    if (previousAuthIdentity.current === undefined) {
-      previousAuthIdentity.current = authIdentity
-      return
-    }
-
-    if (previousAuthIdentity.current === authIdentity) {
-      return
-    }
-
-    previousAuthIdentity.current = authIdentity
-    setMessages([])
-    setDocuments([])
-    setActiveDocument(null)
-    setCurrentChatId('')
-    setInsights([])
-    setReports([])
-    setShowInsights(false)
-    setShowBusinessReport(true)
-    setShowSystemInsights(false)
-    setShowLanding(true)
-    clearWorkspaceState()
-    void refreshChatHistory()
-
-    pushToast(
-      authIdentity
-        ? 'Signed in with Google. Your workspace is now scoped to your account.'
-        : 'Signed out. AgentFlow switched back to the local workspace.',
-      'info',
-    )
-  }, [authIdentity, authStatus, pushToast, refreshChatHistory])
 
   const refreshSystemInsights = useCallback(async () => {
     try {
@@ -306,10 +264,6 @@ export default function Home() {
   }, [createNewSession, currentChatId, refreshChatHistory])
 
   useEffect(() => {
-    if (authStatus === 'loading') {
-      return
-    }
-
     let cancelled = false
 
     const restoreWorkspace = async () => {
@@ -357,7 +311,7 @@ export default function Home() {
     return () => {
       cancelled = true
     }
-  }, [authStatus, loadSession, pushToast])
+  }, [loadSession, pushToast])
 
   /** After idle / deploy, server session list can change; refresh when user returns to the tab. */
   useEffect(() => {
@@ -445,25 +399,6 @@ export default function Home() {
       reportAppError(error, 'We could not load that template. Please try again.')
     }
   }, [handleFileUpload, pushToast, reportAppError])
-
-  const handleAuthClick = useCallback((mode: 'login' | 'signup') => {
-    if (!isGoogleAuthConfigured) {
-      pushToast(
-        'Sign-in isn’t configured here. Enable Google auth in your environment to use accounts, or continue without signing in.',
-        'info',
-      )
-      return
-    }
-
-    void signIn('google', { callbackUrl: '/' })
-    if (mode === 'signup') {
-      pushToast('Continue with Google to create your workspace.', 'info')
-    }
-  }, [isGoogleAuthConfigured, pushToast])
-
-  const handleSignOut = useCallback(() => {
-    void signOut({ callbackUrl: '/' })
-  }, [])
 
   const handleSendMessage = useCallback(async (content: string) => {
     setAppError(null)
@@ -705,13 +640,10 @@ export default function Home() {
         recentChats={chatHistory.slice(0, 3)}
         onLoadChat={handleLoadChat}
         onLoadTemplate={handleLoadTemplate}
-        onAuthClick={handleAuthClick}
-        onSignOut={handleSignOut}
         errorMessage={appError}
         onDismissError={() => setAppError(null)}
         configWarning={configWarning}
         persistenceStatus={persistenceStatus}
-        authUser={authUser}
       />
     )
   }
@@ -759,13 +691,10 @@ export default function Home() {
             void refreshSystemInsights()
           }}
           onLoadTemplate={handleLoadTemplate}
-          onAuthClick={handleAuthClick}
-          onSignOut={handleSignOut}
           onUploadError={handleUploadError}
           isMobileOpen={isSidebarOpen}
           onCloseMobile={() => setIsSidebarOpen(false)}
           persistenceStatus={persistenceStatus}
-          authUser={authUser}
         />
 
         <Chat
@@ -780,7 +709,6 @@ export default function Home() {
           documentName={activeDocument || undefined}
           onNavigateHome={handleBackToHome}
           onOpenSidebar={() => setIsSidebarOpen(true)}
-          onLoadTemplate={handleLoadTemplate}
         />
 
         {showBusinessReport && (

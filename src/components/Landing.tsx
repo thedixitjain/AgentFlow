@@ -12,12 +12,10 @@ import {
   CheckCircle2,
   FileText,
   Loader2,
-  LogIn,
   Menu,
   PlayCircle,
   Sparkles,
   Upload,
-  UserPlus,
   Workflow,
   X,
   Zap,
@@ -33,12 +31,6 @@ import {
   toUserFacingAppError,
 } from '@/lib/businessUx'
 
-interface AuthUser {
-  name?: string | null
-  email?: string | null
-  image?: string | null
-}
-
 const GITHUB_REPO_URL = 'https://github.com/thedixitjain/AgentFlow'
 const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/thedixitjain'
 
@@ -47,15 +39,12 @@ interface LandingProps {
   onFileUpload: (file: DocumentFile) => Promise<void>
   onUploadError: (message: string) => void
   onLoadTemplate: (templateId: WorkspaceTemplateId) => Promise<void>
-  onAuthClick: (mode: 'login' | 'signup') => void
-  onSignOut: () => void
   recentChats: ChatHistory[]
   onLoadChat: (chat: ChatHistory) => Promise<void>
   errorMessage: string | null
   onDismissError: () => void
   configWarning: boolean
   persistenceStatus: PersistenceStatus | null
-  authUser: AuthUser | null
 }
 
 export function Landing({
@@ -63,15 +52,12 @@ export function Landing({
   onFileUpload,
   onUploadError,
   onLoadTemplate,
-  onAuthClick,
-  onSignOut,
   recentChats,
   onLoadChat,
   errorMessage,
   onDismissError,
   configWarning,
   persistenceStatus,
-  authUser,
 }: LandingProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isOpeningWorkspace, setIsOpeningWorkspace] = useState(false)
@@ -270,40 +256,15 @@ export function Landing({
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-2">
-            {authUser ? (
-              <>
-                <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300">
-                  {authUser.name || authUser.email}
-                </div>
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onAuthClick('login')}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-white"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Log in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAuthClick('signup')}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#10a37f] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a]"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Start for Free
-                </button>
-              </>
-            )}
+          <div className="hidden md:flex items-center">
+            <button
+              type="button"
+              onClick={() => void handleOpenWorkspace()}
+              disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
+              className="rounded-lg bg-[#10a37f] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-50"
+            >
+              Open workspace
+            </button>
           </div>
 
           <button
@@ -331,20 +292,12 @@ export function Landing({
               ))}
               <button
                 type="button"
-                onClick={() => (authUser ? onSignOut() : onAuthClick('login'))}
-                className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
+                onClick={() => void handleOpenWorkspace()}
+                disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
+                className="rounded-lg px-3 py-3 text-left text-zinc-100 hover:bg-white/[0.05] disabled:opacity-50"
               >
-                {authUser ? 'Sign out' : 'Log in'}
+                Open workspace
               </button>
-              {!authUser && (
-                <button
-                  type="button"
-                  onClick={() => onAuthClick('signup')}
-                  className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
-                >
-                  Start for Free
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -451,12 +404,6 @@ export function Landing({
                   <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
                   <p className="text-sm text-zinc-300">Plain-language Q&amp;A on your files: summaries, risks, and next steps without a manual.</p>
                 </div>
-                {authUser && (
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
-                    <p className="text-sm text-zinc-300">Signed in as {authUser.email}. Chats and uploads stay tied to your workspace.</p>
-                  </div>
-                )}
                 <div className="flex items-start gap-3">
                   <Workflow className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
                   <p className="text-sm text-zinc-300">Pick up where you left off: recent sessions and documents load when you return.</p>

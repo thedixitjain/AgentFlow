@@ -29,15 +29,12 @@ export default function ShowcaseLandingPage() {
       onFileUpload={noop}
       onUploadError={() => {}}
       onLoadTemplate={noop}
-      onAuthClick={() => {}}
-      onSignOut={() => {}}
       recentChats={recentChats}
       onLoadChat={noop}
       errorMessage={null}
       onDismissError={() => {}}
       configWarning={false}
       persistenceStatus={null}
-      authUser={null}
     />
   )
 }

@@ -14,17 +14,13 @@ import {
   Bot,
   CheckCircle,
   FileText,
-  Info,
-  ArrowRight,
   ClipboardList,
   PanelLeft,
   RefreshCcw,
-  Wand2,
 } from 'lucide-react'
 import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 import { Message } from '@/lib/types'
-import { WORKSPACE_TEMPLATES, type WorkspaceTemplateId } from '@/lib/demoTemplates'
 import { normalizeChatInput, toReadableDocumentName } from '@/lib/businessUx'
 
 interface ChatProps {
@@ -40,7 +36,6 @@ interface ChatProps {
   /** Return to main landing (top); same as sidebar logo */
   onNavigateHome?: () => void
   onOpenSidebar?: () => void
-  onLoadTemplate?: (templateId: WorkspaceTemplateId) => void
 }
 
 const AGENT_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -63,7 +58,6 @@ export function Chat({
   documentName,
   onNavigateHome,
   onOpenSidebar,
-  onLoadTemplate,
 }: ChatProps) {
   const [input, setInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -138,182 +132,85 @@ export function Chat({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--chat-bg)] min-w-0">
-      {/* Explainer header: what this screen is */}
-      <header className="shrink-0 border-b border-white/[0.06] bg-zinc-950/80 px-4 sm:px-6 py-3 sm:py-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                {onOpenSidebar && (
-                  <button
-                    type="button"
-                    onClick={onOpenSidebar}
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 md:hidden"
-                    aria-label="Open sidebar"
-                  >
-                    <PanelLeft className="w-4 h-4" />
-                  </button>
-                )}
-                {onNavigateHome && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={onNavigateHome}
-                      className="font-display text-sm font-semibold text-[#10a37f] hover:text-[#5eead4] transition-colors cursor-pointer"
-                      aria-label="AgentFlow, go to landing page"
-                    >
-                      AgentFlow
-                    </button>
-                    <span className="text-zinc-600 text-sm" aria-hidden>
-                      /
-                    </span>
-                  </>
-                )}
-                <h2 className="font-display text-sm font-semibold text-zinc-100 tracking-tight">
-                  Workspace
-                </h2>
-              </div>
-              <p className="text-xs text-zinc-500 mt-1 leading-relaxed max-w-xl">
-                Ask questions, get summaries, and turn uploaded documents into useful next steps for your team.
-              </p>
-            </div>
-            {onOpenReport && (
+      <header className="shrink-0 border-b border-white/[0.06] bg-zinc-950/80 px-4 sm:px-6 py-3">
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+            {onOpenSidebar && (
               <button
                 type="button"
-                onClick={onOpenReport}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800/80 self-start"
+                onClick={onOpenSidebar}
+                className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 md:hidden"
+                aria-label="Open sidebar"
               >
-                <ClipboardList className="w-3.5 h-3.5 text-[#10a37f]" />
-                {isGeneratingReport
-                  ? 'Refreshing brief...'
-                  : reportCount > 0
-                    ? `Decision brief (${reportCount})`
-                    : 'Decision brief'}
+                <PanelLeft className="w-4 h-4" />
               </button>
             )}
-          </div>
-
-          <div
-            className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs leading-relaxed ${
-              hasDocument
-                ? 'bg-[#10a37f]/10 border border-[#10a37f]/25 text-zinc-300'
-                : 'bg-amber-950/40 border border-amber-500/20 text-amber-100/90'
-            }`}
-          >
-            <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#10a37f]" />
-            <div>
-              {hasDocument ? (
-                <>
-                  <span className="font-medium text-zinc-200">Active document: </span>
-                  <span className="text-zinc-400">{activeDocumentLabel}</span>
-                  <span className="text-zinc-500">. Answers will stay grounded in this file when relevant.</span>
-                </>
-              ) : (
-                <>
-                  <span className="font-medium text-amber-200/95">Welcome! Upload your first document to get started. </span>
-                  <span className="text-amber-100/70">
-                    You can also load a ready-made template from the left panel if you want a guided example.
-                  </span>
-                </>
+            {onNavigateHome && (
+              <button
+                type="button"
+                onClick={onNavigateHome}
+                className="text-sm font-medium text-[#10a37f] hover:text-[#5eead4] transition-colors"
+                aria-label="Back to landing"
+              >
+                AgentFlow
+              </button>
+            )}
+            <span className="text-zinc-600 text-sm hidden sm:inline" aria-hidden>
+              /
+            </span>
+            <h1 className="text-sm font-medium text-zinc-200 tracking-tight">
+              Chat
+              {hasDocument && (
+                <span className="text-zinc-500 font-normal">
+                  {' '}
+                  · <span className="text-zinc-400">{activeDocumentLabel}</span>
+                </span>
               )}
-            </div>
+            </h1>
           </div>
+          {onOpenReport && (
+            <button
+              type="button"
+              onClick={onOpenReport}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/50 px-2.5 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-800/60"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-[#10a37f]" />
+              {isGeneratingReport
+                ? 'Brief…'
+                : reportCount > 0
+                  ? `Brief (${reportCount})`
+                  : 'Brief'}
+            </button>
+          )}
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center p-4 sm:p-8">
-            <div className="max-w-lg w-full">
-              <div className="text-center mb-8">
-                <div className="w-14 h-14 mx-auto mb-5 rounded-2xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
-                  <Image src="/logo.png" alt="AgentFlow" width={56} height={56} className="object-cover" />
-                </div>
-                <h1 className="font-display text-xl sm:text-2xl font-semibold text-zinc-100 mb-2">
-                  {hasDocument
-                    ? `Ready to work with “${activeDocumentLabel}”`
-                    : 'Welcome! Upload your first document to get started.'}
-                </h1>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  {hasDocument
-                    ? 'Ask a question below or start with a suggested prompt. AgentFlow will use the active document to shape the answer.'
-                    : 'Start with your own file or pick a template to see a polished, business-friendly workspace in action.'}
-                </p>
+          <div className="h-full flex flex-col items-center justify-center p-6 sm:p-10">
+            <div className="max-w-md w-full text-center">
+              <div className="w-10 h-10 mx-auto mb-4 rounded-lg overflow-hidden opacity-90">
+                <Image src="/logo.png" alt="" width={40} height={40} className="object-cover" />
               </div>
-
-              <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-4 sm:p-5 mb-6">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500 mb-4">
-                  <Wand2 className="w-4 h-4 text-[#10a37f]" />
-                  Getting started
-                </div>
-                <ol className="space-y-3 text-left">
-                {[
-                  { n: '1', t: 'Choose a starting point', d: hasDocument ? 'Use the suggested prompts below to explore the active document.' : 'Upload a document or load a template from the left rail.' },
-                  { n: '2', t: 'Ask for a business outcome', d: 'Request summaries, action items, risks, follow-ups, or ready-to-share copy.' },
-                  { n: '3', t: 'Review the answer', d: 'Check the response, follow the cited sources when available, and retry if you need a second pass.' },
-                ].map((row) => (
-                  <li
-                    key={row.n}
-                    className="flex gap-3 rounded-xl border border-white/[0.06] bg-zinc-900/40 px-4 py-3"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#10a37f]/20 text-xs font-bold text-[#10a37f]">
-                      {row.n}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-zinc-200">{row.t}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{row.d}</p>
-                    </div>
-                  </li>
-                ))}
-                </ol>
-              </div>
-
-              {!hasDocument && onLoadTemplate && (
-                <>
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 text-center mb-3">
-                    Start with a template
-                  </p>
-                  <div className="grid grid-cols-1 gap-2 mb-8">
-                    {WORKSPACE_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => onLoadTemplate(template.id)}
-                        className="rounded-xl border border-white/[0.08] bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:bg-zinc-800/80 hover:border-[#10a37f]/35"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-zinc-100">{template.name}</p>
-                            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{template.description}</p>
-                          </div>
-                          <span className="rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[#5eead4]">
-                            {template.category}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              <p className="text-[11px] uppercase tracking-wider text-zinc-600 text-center mb-3">
-                Suggested prompts
+              <p className="text-sm text-zinc-300">
+                {hasDocument
+                  ? `Ask anything about ${activeDocumentLabel}.`
+                  : 'Add a file from the sidebar, or try a sample link there.'}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {[
-                  hasDocument ? 'Summarize this update for leadership' : 'Summarize a weekly business update',
-                  hasDocument ? 'What should I act on first?' : 'Analyze a weekly sales spreadsheet',
-                  hasDocument ? 'What trends stand out?' : 'Compare regional performance this week',
-                  hasDocument ? 'What risks or anomalies stand out?' : 'Extract action items from an operations report',
+                  hasDocument ? 'Summarize for leadership' : "Summarize last week's numbers",
+                  hasDocument ? 'What should I do first?' : 'Biggest risks in this data',
+                  hasDocument ? 'Key trends' : 'Compare regions',
+                  hasDocument ? 'Red flags?' : 'Action items',
                 ].map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => onSendMessage(prompt)}
-                    className="group flex items-center gap-2 p-3 text-left text-sm rounded-xl bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/[0.08] text-zinc-200 transition-colors"
+                    className="text-xs text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-md hover:bg-white/[0.05] transition-colors"
                   >
-                    <ArrowRight className="w-4 h-4 text-[#10a37f] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    <span className="leading-snug">{prompt}</span>
+                    {prompt}
                   </button>
                 ))}
               </div>
@@ -514,7 +411,7 @@ export function Chat({
                       style={{ animationDelay: '0.3s' }}
                     />
                   </span>
-                  <span className="text-xs text-zinc-500">Retrieving & generating…</span>
+                  <span className="text-xs text-zinc-500">Working…</span>
                 </div>
               </div>
             )}
@@ -543,22 +440,13 @@ export function Chat({
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  hasDocument
-                    ? `Ask something about this document…`
-                    : 'Ask a question, or upload a document in the sidebar…'
+                  hasDocument ? 'Message…' : 'Upload a file in the sidebar to ground answers…'
                 }
                 rows={1}
                 className="w-full bg-transparent px-4 py-3 text-sm sm:text-base text-zinc-100 resize-none focus:outline-none placeholder:text-zinc-600 min-h-[48px] max-h-[200px]"
               />
 
-              <div className="px-3 pb-3 flex justify-between items-center gap-2">
-                <span className="text-[11px] text-zinc-600 hidden sm:inline">
-                  <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Enter</kbd> send ·{' '}
-                  <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">Shift+Enter</kbd>{' '}
-                  new line
-                </span>
-                <span className="text-[11px] text-zinc-600 sm:hidden">Enter to send</span>
-
+              <div className="px-3 pb-3 flex justify-end items-center">
                 <button
                   type="submit"
                   disabled={!sendableMessage}
@@ -571,9 +459,6 @@ export function Chat({
             </div>
           </form>
 
-          <p className="text-[11px] text-zinc-600 text-center mt-2.5 leading-relaxed">
-            Answers use your uploaded documents when available. Open Workspace Status for a simple health view or switch to Developer View for detailed metrics.
-          </p>
         </div>
       </div>
     </div>
