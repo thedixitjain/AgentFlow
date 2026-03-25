@@ -133,6 +133,13 @@ export default function ShowcaseInsightsPage() {
         onDeleteChat={() => undefined}
         onBackToHome={() => router.push('/', { scroll: true })}
         onOpenSystemInsights={() => undefined}
+        onLoadTemplate={() => undefined}
+        onAuthClick={() => undefined}
+        onSignOut={() => undefined}
+        isMobileOpen={false}
+        onCloseMobile={() => undefined}
+        persistenceStatus={null}
+        authUser={null}
       />
       <Chat
         messages={messages}
@@ -141,6 +148,7 @@ export default function ShowcaseInsightsPage() {
         hasDocument
         documentName="ops-update.txt"
         onNavigateHome={() => router.push('/', { scroll: true })}
+        onLoadTemplate={() => undefined}
       />
       <SystemInsightsPanel
         stats={stats}

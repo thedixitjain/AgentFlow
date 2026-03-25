@@ -50,7 +50,7 @@ export function InsightsPanel({ insights, onClose, onNavigateHome }: InsightsPan
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {insights.map((insight, index) => (
           <div
-            key={index}
+            key={`${insight.type}-${insight.title}-${index}`}
             className="p-4 bg-[#2f2f2f] border border-[#424242]"
           >
             {insight.type === 'metric' && (

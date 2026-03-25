@@ -80,12 +80,31 @@ export interface Message {
   };
 }
 
+export type ReportConfidence = 'high' | 'medium' | 'low';
+export type ReportSource = 'llm' | 'heuristic';
+
+export interface WorkspaceReport {
+  id: string;
+  title: string;
+  focus: string;
+  overview: string;
+  highlights: string[];
+  risks: string[];
+  actions: string[];
+  followUps: string[];
+  confidence: ReportConfidence;
+  source: ReportSource;
+  documentId?: string;
+  generatedAt: Date;
+}
+
 // Session Types
 export interface Session {
   id: string;
   workspaceId: string;
   documents: Document[];
   messages: Message[];
+  reports: WorkspaceReport[];
   agentStates: Record<string, AgentState>;
   createdAt: Date;
   updatedAt: Date;

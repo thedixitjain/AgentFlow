@@ -65,6 +65,13 @@ export default function ShowcaseChatPage() {
         onDeleteChat={() => undefined}
         onBackToHome={() => router.push('/', { scroll: true })}
         onOpenSystemInsights={() => undefined}
+        onLoadTemplate={() => undefined}
+        onAuthClick={() => undefined}
+        onSignOut={() => undefined}
+        isMobileOpen={false}
+        onCloseMobile={() => undefined}
+        persistenceStatus={null}
+        authUser={null}
       />
       <Chat
         messages={messages}
@@ -73,6 +80,7 @@ export default function ShowcaseChatPage() {
         hasDocument
         documentName="q4-revenue-report.txt"
         onNavigateHome={() => router.push('/', { scroll: true })}
+        onLoadTemplate={() => undefined}
       />
     </div>
   )

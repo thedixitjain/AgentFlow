@@ -6,105 +6,77 @@ import { useDropzone } from 'react-dropzone'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import {
-  Upload,
-  ArrowRight,
-  FileText,
-  BarChart2,
-  Zap,
-  Database,
-  Sparkles,
-  Bot,
-  CheckCircle,
-  Search,
-  Menu,
-  X,
-  Layers,
-  Radio,
-  Server,
-  BookOpen,
-  ExternalLink,
   AlertCircle,
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  FileText,
   Loader2,
+  LogIn,
+  Menu,
+  PlayCircle,
+  Sparkles,
+  Upload,
+  UserPlus,
+  Workflow,
+  X,
+  Zap,
 } from 'lucide-react'
-import { DocumentFile, ChatHistory } from '@/lib/types'
+import type { DocumentFile, ChatHistory } from '@/lib/types'
+import { WORKSPACE_TEMPLATES, type WorkspaceTemplateId } from '@/lib/demoTemplates'
+import type { PersistenceStatus } from '@/lib/api'
+import {
+  buildParsedTextDocument,
+  getUploadErrorMessage,
+  toReadableConversationTitle,
+  toReadableDocumentName,
+  toUserFacingAppError,
+} from '@/lib/businessUx'
 
-const SAMPLE_SALES_CSV = `Date,Product,Category,Sales,Revenue,Customer_ID,Region,Quantity
-2023-01-15,Laptop Pro,Electronics,1,1200,C001,North,1
-2023-01-16,Wireless Mouse,Electronics,3,75,C002,South,3
-2023-01-17,Office Chair,Furniture,2,400,C003,East,2
-2023-01-18,Laptop Pro,Electronics,1,1200,C004,West,1
-2023-01-19,Desk Lamp,Furniture,1,80,C005,North,1
-2023-01-20,Wireless Keyboard,Electronics,2,120,C006,South,2
-2023-01-21,Standing Desk,Furniture,1,600,C007,East,1
-2023-01-22,Laptop Pro,Electronics,2,2400,C008,West,2
-2023-01-23,Monitor,Electronics,1,300,C009,North,1
-2023-01-24,Office Chair,Furniture,3,1200,C010,South,3
-2023-02-01,Laptop Pro,Electronics,1,1200,C011,East,1
-2023-02-02,Wireless Mouse,Electronics,5,125,C012,West,5
-2023-02-03,Desk Lamp,Furniture,2,160,C013,North,2
-2023-02-04,Standing Desk,Furniture,1,600,C014,South,1
-2023-02-05,Monitor,Electronics,2,600,C015,East,2
-2023-02-06,Wireless Keyboard,Electronics,3,180,C016,West,3
-2023-02-07,Office Chair,Furniture,1,400,C017,North,1
-2023-02-08,Laptop Pro,Electronics,3,3600,C018,South,3
-2023-02-09,Desk Lamp,Furniture,1,80,C019,East,1
-2023-02-10,Monitor,Electronics,1,300,C020,West,1`
+interface AuthUser {
+  name?: string | null
+  email?: string | null
+  image?: string | null
+}
 
-const DEMO_VIDEO_URL = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL
-const ARCHITECTURE_DOC =
-  'https://github.com/thedixitjain/AgentFlow/blob/main/docs/ARCHITECTURE.md'
+const GITHUB_REPO_URL = 'https://github.com/thedixitjain/AgentFlow'
+const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/thedixitjain'
+
 interface LandingProps {
   onStart: () => Promise<void>
   onFileUpload: (file: DocumentFile) => Promise<void>
+  onUploadError: (message: string) => void
+  onLoadTemplate: (templateId: WorkspaceTemplateId) => Promise<void>
+  onAuthClick: (mode: 'login' | 'signup') => void
+  onSignOut: () => void
   recentChats: ChatHistory[]
   onLoadChat: (chat: ChatHistory) => Promise<void>
   errorMessage: string | null
   onDismissError: () => void
   configWarning: boolean
-  configuredApiUrl: string
+  persistenceStatus: PersistenceStatus | null
+  authUser: AuthUser | null
 }
 
 export function Landing({
   onStart,
   onFileUpload,
+  onUploadError,
+  onLoadTemplate,
+  onAuthClick,
+  onSignOut,
   recentChats,
   onLoadChat,
   errorMessage,
   onDismissError,
   configWarning,
-  configuredApiUrl,
+  persistenceStatus,
+  authUser,
 }: LandingProps) {
   const [isUploading, setIsUploading] = useState(false)
-  const [isLoadingSample, setIsLoadingSample] = useState(false)
   const [isOpeningWorkspace, setIsOpeningWorkspace] = useState(false)
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState<WorkspaceTemplateId | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const loadSampleData = useCallback(async () => {
-    setIsLoadingSample(true)
-    try {
-      await new Promise<void>((resolve, reject) => {
-        Papa.parse(SAMPLE_SALES_CSV, {
-          header: true,
-          complete: (results) => {
-            const data = results.data as Record<string, unknown>[]
-            void onFileUpload({
-              name: 'sales_data.csv',
-              type: 'csv',
-              size: SAMPLE_SALES_CSV.length,
-              data: data.filter((row) => Object.values(row).some((v) => v)),
-              columns: results.meta.fields || [],
-              uploadedAt: new Date(),
-            })
-              .then(resolve)
-              .catch(reject)
-          },
-          error: (err: Error) => reject(err),
-        })
-      })
-    } finally {
-      setIsLoadingSample(false)
-    }
-  }, [onFileUpload])
 
   const handleOpenWorkspace = useCallback(async () => {
     setIsOpeningWorkspace(true)
@@ -115,144 +87,127 @@ export function Landing({
     }
   }, [onStart])
 
-  const processFile = useCallback(
-    async (file: File) => {
-      setIsUploading(true)
-      const ext = file.name.split('.').pop()?.toLowerCase()
+  const handleLoadTemplate = useCallback(async (templateId: WorkspaceTemplateId) => {
+    setIsLoadingTemplate(templateId)
+    try {
+      await onLoadTemplate(templateId)
+    } finally {
+      setIsLoadingTemplate(null)
+    }
+  }, [onLoadTemplate])
 
-      try {
-        if (ext === 'csv') {
-          await new Promise<void>((resolve, reject) => {
-            Papa.parse(file, {
-              header: true,
-              complete: (results) => {
-                const data = results.data as Record<string, unknown>[]
-                void onFileUpload({
-                  name: file.name,
-                  type: 'csv',
-                  size: file.size,
-                  data: data.filter((row) => Object.values(row).some((v) => v)),
-                  columns: results.meta.fields || [],
-                  uploadedAt: new Date(),
-                })
-                  .then(resolve)
-                  .catch(reject)
-              },
-              error: (err: Error) => reject(err),
-            })
-          })
-        } else if (ext === 'xlsx' || ext === 'xls') {
-          const buffer = await file.arrayBuffer()
-          const workbook = XLSX.read(buffer, { type: 'array' })
-          const sheet = workbook.Sheets[workbook.SheetNames[0]]
-          const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]
-          await onFileUpload({
-            name: file.name,
-            type: 'xlsx',
-            size: file.size,
-            data,
-            columns: data.length > 0 ? Object.keys(data[0]) : [],
-            uploadedAt: new Date(),
-          })
-        } else if (ext === 'txt') {
-          const text = await file.text()
-          await onFileUpload({
-            name: file.name,
-            type: 'txt',
-            size: file.size,
-            content: text,
-            uploadedAt: new Date(),
-          })
-        } else if (ext === 'pdf') {
-          const formData = new FormData()
-          formData.append('file', file)
+  const processFile = useCallback(async (file: File) => {
+    setIsUploading(true)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const readableFileName = toReadableDocumentName(file.name)
 
-          try {
-            const response = await fetch('/api/parse-pdf', {
-              method: 'POST',
-              body: formData,
-            })
-
-            if (response.ok) {
-              const result = await response.json()
-              await onFileUpload({
+    try {
+      if (ext === 'csv') {
+        await new Promise<void>((resolve, reject) => {
+          Papa.parse(file, {
+            header: true,
+            complete: (results) => {
+              const data = results.data as Record<string, unknown>[]
+              void onFileUpload({
                 name: file.name,
-                type: 'pdf',
+                type: 'csv',
                 size: file.size,
-                content: result.text || 'PDF content could not be extracted. Try uploading as TXT.',
+                data: data.filter((row) => Object.values(row).some((value) => value)),
+                columns: results.meta.fields || [],
                 uploadedAt: new Date(),
-              })
-            } else {
-              await onFileUpload({
-                name: file.name,
-                type: 'pdf',
-                size: file.size,
-                content: 'PDF parsing failed. Try uploading as TXT for better results.',
-                uploadedAt: new Date(),
-              })
-            }
-          } catch {
-            await onFileUpload({
-              name: file.name,
-              type: 'pdf',
-              size: file.size,
-              content: 'PDF parsing error. Try uploading as TXT.',
-              uploadedAt: new Date(),
-            })
-          }
-        } else if (ext === 'docx' || ext === 'doc') {
-          const formData = new FormData()
-          formData.append('file', file)
-
-          try {
-            const response = await fetch('/api/parse-docx', {
-              method: 'POST',
-              body: formData,
-            })
-
-            if (response.ok) {
-              const result = await response.json()
-              await onFileUpload({
-                name: file.name,
-                type: 'docx',
-                size: file.size,
-                content: result.text || 'DOCX content could not be extracted.',
-                uploadedAt: new Date(),
-              })
-            } else {
-              await onFileUpload({
-                name: file.name,
-                type: 'docx',
-                size: file.size,
-                content: 'DOCX parsing failed.',
-                uploadedAt: new Date(),
-              })
-            }
-          } catch {
-            await onFileUpload({
-              name: file.name,
-              type: 'docx',
-              size: file.size,
-              content: 'DOCX parsing error.',
-              uploadedAt: new Date(),
-            })
-          }
-        } else if (ext === 'pptx' || ext === 'ppt') {
-          const text = await file.text().catch(() => '')
-          await onFileUpload({
-            name: file.name,
-            type: 'pptx',
-            size: file.size,
-            content: text || 'PowerPoint uploaded. Text extraction limited.',
-            uploadedAt: new Date(),
+              }).then(resolve).catch(reject)
+            },
+            error: (err: Error) => reject(err),
           })
-        }
-      } finally {
-        setIsUploading(false)
+        })
+        return
       }
-    },
-    [onFileUpload]
-  )
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]
+        await onFileUpload({
+          name: file.name,
+          type: 'xlsx',
+          size: file.size,
+          data,
+          columns: data.length > 0 ? Object.keys(data[0]) : [],
+          uploadedAt: new Date(),
+        })
+        return
+      }
+
+      if (ext === 'txt') {
+        await onFileUpload({
+          name: file.name,
+          type: 'txt',
+          size: file.size,
+          content: await file.text(),
+          uploadedAt: new Date(),
+        })
+        return
+      }
+
+      if (ext === 'pdf') {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch('/api/parse-pdf', { method: 'POST', body: formData })
+        if (!response.ok) {
+          onUploadError(
+            await getUploadErrorMessage(
+              response,
+              `We couldn't upload ${readableFileName}. Please try another PDF or export it as text.`,
+            ),
+          )
+          return
+        }
+        const result = (await response.json()) as { text?: string }
+        await onFileUpload(buildParsedTextDocument(file, 'pdf', result.text))
+        return
+      }
+
+      if (ext === 'docx' || ext === 'doc') {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch('/api/parse-docx', { method: 'POST', body: formData })
+        if (!response.ok) {
+          onUploadError(
+            await getUploadErrorMessage(
+              response,
+              `We couldn't upload ${readableFileName}. Please try another Word file or export it as text.`,
+            ),
+          )
+          return
+        }
+        const result = (await response.json()) as { text?: string }
+        await onFileUpload(buildParsedTextDocument(file, 'docx', result.text))
+        return
+      }
+
+      if (ext === 'pptx' || ext === 'ppt') {
+        await onFileUpload({
+          name: file.name,
+          type: 'pptx',
+          size: file.size,
+          content: (await file.text().catch(() => '')) || 'PowerPoint uploaded. Text extraction is limited for this format.',
+          uploadedAt: new Date(),
+        })
+        return
+      }
+      onUploadError('That file type is not supported yet. Please upload CSV, Excel, PDF, Word, PowerPoint, or text.')
+    } catch (error) {
+      onUploadError(
+        toUserFacingAppError(
+          error,
+          `We couldn't upload ${readableFileName}. Please try again with a different file.`,
+        ),
+      )
+    } finally {
+      setIsUploading(false)
+    }
+  }, [onFileUpload, onUploadError])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (files) => files[0] && processFile(files[0]),
@@ -275,39 +230,30 @@ export function Landing({
   }
 
   const navItems = [
-    { id: 'demo', label: 'Demo' },
-    { id: 'architecture', label: 'Architecture' },
-    { id: 'features', label: 'Features' },
-    { id: 'how-it-works', label: 'How it works' },
-    { id: 'agents', label: 'Agents' },
+    { id: 'product', label: 'Product' },
+    { id: 'use-cases', label: 'Use cases' },
+    { id: 'trust', label: 'Trust' },
   ]
 
   return (
-    <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 relative">
+    <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 relative overflow-hidden">
       <div className="pointer-events-none fixed inset-0 bg-mesh-hero" aria-hidden />
       <div className="pointer-events-none fixed inset-0 bg-grid-faint opacity-40" aria-hidden />
 
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl">
-        <div className="px-4 md:px-8 py-3 flex items-center justify-between max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-3 rounded-xl p-1 -m-1 pr-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#10a37f]/40"
+            className="flex items-center gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
             aria-label="AgentFlow, scroll to top"
           >
-              <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
-                <Image
-                  src="/logo.png"
-                  alt="AgentFlow Logo"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-[#10a37f]/20">
+              <Image src="/logo.png" alt="AgentFlow logo" fill className="object-cover" />
+            </div>
             <div>
-              <span className="font-display font-semibold text-lg tracking-tight">AgentFlow</span>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">
-                Document intelligence
-              </p>
+              <p className="font-display text-lg font-semibold tracking-tight">AgentFlow</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 hidden sm:block">AI workspace</p>
             </div>
           </button>
 
@@ -317,26 +263,53 @@ export function Landing({
                 key={item.id}
                 type="button"
                 onClick={() => scrollToSection(item.id)}
-                className="px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                className="rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-white"
               >
                 {item.label}
               </button>
             ))}
-            <a
-              href="https://github.com/thedixitjain/AgentFlow"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-2 px-3 py-2 text-sm text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors inline-flex items-center gap-1"
-            >
-              GitHub
-              <ExternalLink className="w-3.5 h-3.5 opacity-60" />
-            </a>
           </nav>
+
+          <div className="hidden md:flex items-center gap-2">
+            {authUser ? (
+              <>
+                <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300">
+                  {authUser.name || authUser.email}
+                </div>
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onAuthClick('login')}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAuthClick('signup')}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#10a37f] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Start for Free
+                </button>
+              </>
+            )}
+          </div>
 
           <button
             type="button"
-            className="lg:hidden p-2 rounded-lg hover:bg-white/5"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden rounded-lg p-2 hover:bg-white/[0.05]"
+            onClick={() => setMobileMenuOpen((open) => !open)}
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -344,46 +317,46 @@ export function Landing({
         </div>
 
         {mobileMenuOpen && (
-          <nav className="lg:hidden px-4 pb-4 border-t border-white/[0.06] bg-[#0c0c0f]">
-            <div className="flex flex-col gap-1 pt-2">
+          <div className="lg:hidden border-t border-white/[0.06] bg-[#0c0c0f] px-4 pb-4">
+            <div className="flex flex-col gap-1 pt-3">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => scrollToSection(item.id)}
-                  className="text-left py-3 px-2 text-zinc-300 rounded-lg hover:bg-white/5"
+                  className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
                 >
                   {item.label}
                 </button>
               ))}
-              <a
-                href="https://github.com/thedixitjain/AgentFlow"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-3 px-2 text-zinc-300"
+              <button
+                type="button"
+                onClick={() => (authUser ? onSignOut() : onAuthClick('login'))}
+                className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
               >
-                GitHub
-              </a>
+                {authUser ? 'Sign out' : 'Log in'}
+              </button>
+              {!authUser && (
+                <button
+                  type="button"
+                  onClick={() => onAuthClick('signup')}
+                  className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
+                >
+                  Start for Free
+                </button>
+              )}
             </div>
-          </nav>
+          </div>
         )}
       </header>
 
       {configWarning && (
         <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 pt-4">
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-sm text-amber-100/95">
-            <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-amber-50">API URL not set for production</p>
-              <p className="text-amber-100/80 text-xs mt-1 leading-relaxed">
-                This deployment is still pointing at <code className="text-amber-200/90">localhost</code>.
-                In Vercel → Environment Variables, set{' '}
-                <code className="text-amber-200/90">NEXT_PUBLIC_API_URL</code> to your Render API (e.g.{' '}
-                <code className="text-amber-200/90 break-all">https://your-service.onrender.com/api</code>
-                ), then redeploy. On Render, set{' '}
-                <code className="text-amber-200/90">CORS_ORIGIN</code> to this site&apos;s URL.
-              </p>
-            </div>
+          <div className="rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-sm text-amber-100/95">
+            <p className="font-medium text-amber-50">We can’t reach the AgentFlow API from this environment.</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+              Check that the backend is running and that your app is pointed at the correct API URL. You can still browse the interface.
+            </p>
           </div>
         </div>
       )}
@@ -405,404 +378,269 @@ export function Landing({
         </div>
       )}
 
-      <main className="relative z-10 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-16 max-w-6xl mx-auto">
-        {/* Hero */}
-        <section className="text-center mb-16 md:mb-20 max-w-4xl mx-auto">
-          <p className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-[#10a37f] mb-6 px-4 py-1.5 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10">
-            <Radio className="w-3.5 h-3.5" />
-            Multi-agent RAG · Groq · Observable backend
-          </p>
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-16 pb-16 space-y-24">
+        <section className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10 px-4 py-1.5 text-xs font-medium text-[#5eead4]">
+              <Sparkles className="w-3.5 h-3.5" />
+              Business Review Copilot
+            </div>
+            <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.05] tracking-tight">
+              Turn weekly business reports into action plans.
+            </h1>
+            <p className="mt-5 max-w-xl text-lg text-zinc-400 leading-relaxed">
+              Upload sales, support, or operations updates and get a leadership-ready summary, risks, and recommended actions in minutes.
+            </p>
 
-          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold mb-6 leading-[1.1] tracking-tight">
-            Analyze business documents with{' '}
-            <span className="bg-gradient-to-r from-[#5eead4] via-[#10a37f] to-[#34d399] bg-clip-text text-transparent">
-              intelligent agents
-            </span>
-          </h1>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => void handleOpenWorkspace()}
+                disabled={Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#10a37f] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-60"
+              >
+                {isOpeningWorkspace ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                Start for Free
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection('demo')}
+                disabled={isOpeningWorkspace || Boolean(isLoadingTemplate) || isUploading}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.03] px-5 py-3 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.06] disabled:opacity-60"
+              >
+                <ArrowRight className="w-4 h-4 text-[#5eead4]" />
+                Book a Demo
+              </button>
+            </div>
 
-          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
-            Upload sales, finance, or ops files, then ask in plain English. Grounded answers, cited
-            retrieval, and a routing layer built for portfolio-grade demos.
-          </p>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                { title: 'Leadership summaries', body: 'Generate decision-ready updates from the reports your team already creates every week.' },
+                { title: 'Faster iteration', body: 'Start from templates, upload a document, and get to value in minutes.' },
+                { title: 'Actionable outputs', body: 'Move from raw files and chat answers to risks, actions, and follow-up questions.' },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4">
+                  <p className="text-sm font-medium text-zinc-100">{item.title}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-500">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 max-w-3xl mx-auto w-full">
+          <div className="rounded-[28px] border border-white/[0.08] bg-zinc-950/70 p-5 shadow-2xl shadow-black/40">
             <div
               {...getRootProps()}
-              className={`cursor-pointer rounded-xl px-5 py-3.5 font-medium transition-all shadow-lg min-h-[52px] flex items-center justify-center ${
-                isDragActive
-                  ? 'bg-[#10a37f] text-white ring-2 ring-[#10a37f]/50'
-                  : 'bg-white text-zinc-900 hover:bg-zinc-100'
-              } ${isUploading || isLoadingSample || isOpeningWorkspace ? 'opacity-60 pointer-events-none' : ''}`}
+              className={`rounded-2xl border border-dashed px-5 py-6 text-center transition-all ${
+                isDragActive ? 'border-[#10a37f] bg-[#10a37f]/10' : 'border-white/[0.12] bg-zinc-900/60 hover:border-[#10a37f]/35'
+              }`}
             >
               <input {...getInputProps()} />
-              <div className="flex items-center justify-center gap-2">
-                {isUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Upload className="w-5 h-5" />
-                )}
-                <span className="text-sm sm:text-base">{isDragActive ? 'Drop file' : 'Upload document'}</span>
+              <Upload className="mx-auto w-6 h-6 text-[#10a37f]" />
+              <p className="mt-3 text-sm font-medium text-zinc-100">{isDragActive ? 'Drop a file to open the workspace' : 'Upload a business file to get started'}</p>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-500">CSV, Excel, PDF, DOCX, or text files work out of the box.</p>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white text-zinc-900 px-3 py-1.5 text-xs font-medium">
+                {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {isUploading ? 'Loading workspace…' : 'Drop file or click to upload'}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void loadSampleData()}
-              disabled={isLoadingSample || isUploading || isOpeningWorkspace}
-              className="rounded-xl px-5 py-3.5 font-medium bg-[#10a37f] hover:bg-[#0d8a6a] text-white transition-colors shadow-lg shadow-[#10a37f]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[52px]"
-            >
-              {isLoadingSample ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Database className="w-5 h-5" />
-              )}
-              <span className="text-sm sm:text-base">Try sample data</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void handleOpenWorkspace()}
-              disabled={isOpeningWorkspace || isLoadingSample || isUploading}
-              className="rounded-xl px-5 py-3.5 font-medium border-2 border-[#10a37f]/40 bg-[#10a37f]/10 hover:bg-[#10a37f]/20 text-white transition-colors flex items-center justify-center gap-2 min-h-[52px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isOpeningWorkspace ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <ArrowRight className="w-5 h-5 text-[#5eead4]" />
-              )}
-              <span className="text-sm sm:text-base font-semibold">Open workspace</span>
-            </button>
+            <div className="mt-5 rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-4">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">What teams get</p>
+              <div className="mt-3 space-y-3">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
+                  <p className="text-sm text-zinc-300">Plain-language Q&amp;A on your files: summaries, risks, and next steps without a manual.</p>
+                </div>
+                {authUser && (
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
+                    <p className="text-sm text-zinc-300">Signed in as {authUser.email}. Chats and uploads stay tied to your workspace.</p>
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <Workflow className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
+                  <p className="text-sm text-zinc-300">Pick up where you left off: recent sessions and documents load when you return.</p>
+                </div>
+                {persistenceStatus && (
+                  <div className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-3">
+                    <p className="text-xs font-medium text-zinc-100">
+                      {persistenceStatus.mode === 'database-ready'
+                        ? 'Your workspace syncs to the server.'
+                        : 'Your workspace is saved on this device'}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                      {persistenceStatus.mode === 'database-ready'
+                        ? 'Open AgentFlow from another browser or device signed into the same account to continue.'
+                        : 'Clearing site data or using another device starts a fresh workspace until cloud sync is enabled.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-
-          <p className="text-xs text-zinc-500 max-w-lg mx-auto leading-relaxed">
-            API base:{' '}
-            <span className="text-zinc-400 font-mono text-[10px] break-all">{configuredApiUrl}</span>
-            . Production: use <span className="text-zinc-400">NEXT_PUBLIC_API_URL=/agentflow-api</span> on
-            Vercel (proxied to Render to avoid CORS). See repo README.
-          </p>
         </section>
 
-        {/* Plain-English product flow */}
-        <section className="animate-fade-in mb-20 md:mb-28" aria-labelledby="flow-heading">
-          <h2
-            id="flow-heading"
-            className="font-display text-xl sm:text-2xl font-semibold text-white text-center mb-2"
-          >
-            What you’re looking at
-          </h2>
-          <p className="text-sm text-zinc-500 text-center mb-10 max-w-2xl mx-auto leading-relaxed">
-            Three steps that map to the architecture: ingest → retrieve → answer. No jargon required
-            to try the demo; the labels in the app mirror how the backend works.
+        <section id="product" className="grid gap-6 md:grid-cols-3">
+          {[
+            {
+              icon: Bot,
+              title: 'Decision-ready chat',
+              body: 'Teams ask questions in plain language and get business-ready answers instead of generic AI chatter.',
+            },
+            {
+              icon: Zap,
+              title: 'Template-driven onboarding',
+              body: 'Move new users past the blank screen with ready-made starting points for sales, support, and content work.',
+            },
+            {
+              icon: FileText,
+              title: 'Clear business outputs',
+              body: 'Summaries, risks, actions, and follow-up questions are packaged in a format leaders can use quickly.',
+            },
+          ].map(({ icon: Icon, title, body }) => (
+            <div key={title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
+              <div className="w-11 h-11 rounded-2xl bg-[#10a37f]/12 text-[#10a37f] flex items-center justify-center">
+                <Icon className="w-5 h-5" />
+              </div>
+              <h2 className="mt-5 font-display text-xl font-semibold text-white">{title}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{body}</p>
+            </div>
+          ))}
+        </section>
+
+        <section id="demo" className="max-w-3xl">
+          <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">How it works</p>
+          <h2 className="mt-3 font-display text-3xl font-semibold text-white">Upload once, then ask anything your leadership would ask.</h2>
+          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            You get answers grounded in your spreadsheet, PDF, or brief, plus a decision brief you can share. No slide deck required for the first conversation.
           </p>
-          <div className="grid md:grid-cols-3 gap-4 lg:gap-6">
+          <div className="mt-6 space-y-3">
             {[
-              {
-                title: '1 · Bring your file',
-                body: 'Upload or use sample data. The API parses and stores the document against your session.',
-              },
-              {
-                title: '2 · Ask a real question',
-                body: 'Plain English. The orchestrator may route to RAG (search your chunks), Q&A, summary, or verify.',
-              },
-              {
-                title: '3 · Read the answer',
-                body: 'Streaming replies. When retrieval runs, expand “sources” to see which text chunks were used.',
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-6 text-left h-full flex flex-col"
-              >
-                <h3 className="font-display text-sm font-semibold text-[#10a37f] mb-3">{item.title}</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed flex-1">{item.body}</p>
+              'Drop a CSV, Excel export, PDF, or Word doc, or start from a template with sample data.',
+              'Ask in normal language: trends, risks, follow-ups, or a one-page summary for execs.',
+              'Open the workspace anytime; your session picks up with the same files and chat history.',
+            ].map((line) => (
+              <div key={line} className="flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-[#10a37f] mt-0.5 shrink-0" />
+                <p className="text-sm text-zinc-300">{line}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Product preview (visitors): optional narrated video replaces GIF when configured in deploy */}
-        <section id="demo" className="animate-fade-in mb-24 md:mb-32 scroll-mt-28">
-          <div className="text-center max-w-2xl mx-auto mb-10 px-2">
-            <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3">
-              See it in action
-            </h2>
-            <p className="text-zinc-400 text-sm md:text-base leading-relaxed">
-              {DEMO_VIDEO_URL ? (
-                <>Short walkthrough of the product.</>
-              ) : (
-                <>
-                  Preview of the workspace below: upload, chat, and answers grounded in your
-                  documents. Use <span className="text-zinc-300">Open workspace</span> above to try it
-                  live.
-                </>
-              )}
+        <section id="use-cases">
+          <div className="max-w-2xl">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Use cases</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">Support, revenue, and GTM, each with a ready-made starting file.</h2>
+          </div>
+          <div className="mt-8 grid md:grid-cols-3 gap-5">
+            {[
+              {
+                title: 'Customer Support Bot',
+                body: 'Turn a support brief into priority queues, escalation plans, and grounded response drafts.',
+                templateId: 'support-copilot' as WorkspaceTemplateId,
+              },
+              {
+                title: 'Data Extraction Pipeline',
+                body: 'Load structured revenue data and surface metrics, risks, and next actions for leadership.',
+                templateId: 'sales-analyst' as WorkspaceTemplateId,
+              },
+              {
+                title: 'Content Writer',
+                body: 'Start from a campaign brief and generate launch messaging with a reusable agent workflow.',
+                templateId: 'content-writer' as WorkspaceTemplateId,
+              },
+            ].map((card) => (
+              <div key={card.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
+                <h3 className="font-display text-xl font-semibold text-white">{card.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-400">{card.body}</p>
+                <button
+                  type="button"
+                  onClick={() => void handleLoadTemplate(card.templateId)}
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#5eead4] hover:text-white transition-colors"
+                >
+                  Load this template
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="trust" className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] items-start">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Trust &amp; privacy</p>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-white">Your documents stay yours, and answers trace back to them.</h2>
+            <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+              Teams evaluating AI for internal reports need to know who can see data and how answers are grounded. This section is here for that conversation; details are summarized on the Security page.
             </p>
           </div>
-
-          <div className="group/demo relative rounded-2xl border border-white/[0.08] bg-zinc-900/40 overflow-hidden shadow-2xl shadow-black/40 transition-all duration-700 hover:border-[#10a37f]/40 hover:shadow-[#10a37f]/10 translate-y-0 hover:-translate-y-1">
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 opacity-0 group-hover/demo:opacity-100 transition-all duration-500 translate-y-2 group-hover/demo:translate-y-0 shadow-xl">
-              <div className="relative flex h-2 w-2">
-                <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10a37f] opacity-75"></div>
-                <div className="relative inline-flex rounded-full h-2 w-2 bg-[#10a37f] shadow-[0_0_10px_#10a37f]"></div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                title: 'Scoped access',
+                body: 'Optional Google sign-in keeps workspaces separated per account when enabled in your deployment.',
+              },
+              {
+                title: 'Saved work',
+                body: 'Sessions and uploads persist so you are not re-uploading the same file every visit.',
+              },
+              {
+                title: 'Reviewable output',
+                body: 'Responses can cite the files you uploaded so reviewers can sanity-check before anything goes to leadership.',
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6">
+                <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-400">{item.body}</p>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#10a37f]">System Demo</span>
-            </div>
-            
-            {/* Background glow effect on hover */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-[#10a37f]/0 via-[#10a37f]/5 to-[#10a37f]/0 opacity-0 group-hover/demo:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            {DEMO_VIDEO_URL ? (
-              <div className="aspect-video w-full">
-                <iframe
-                  title="AgentFlow demo video"
-                  src={DEMO_VIDEO_URL}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <div className="grid lg:grid-cols-5">
-                <div className="lg:col-span-3 relative min-h-[220px] sm:min-h-[280px] md:aspect-video lg:aspect-auto lg:min-h-[340px] border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-black/30">
-                  <Image
-                    src="/media/demo.webp"
-                    alt="Screen recording: AgentFlow chat workspace with document and messages"
-                    fill
-                    className="object-cover object-top transition-transform duration-700 group-hover/demo:scale-[1.02]"
-                    unoptimized
-                    priority
-                  />
-                </div>
-                <div className="lg:col-span-2 p-6 sm:p-8 lg:p-10 flex flex-col justify-center text-left">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#10a37f] mb-2">
-                    What this preview shows
-                  </p>
-                  <h3 className="font-display text-lg sm:text-xl font-semibold text-white mb-4">
-                    The same flow you get in the live app
-                  </h3>
-                  <ul className="space-y-3 text-sm text-zinc-400 leading-relaxed">
-                    <li className="flex gap-3">
-                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">01</span>
-                      <span>Work with business files (CSV, Excel, PDF, text).</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">02</span>
-                      <span>Ask questions in natural language; the backend retrieves relevant chunks, then replies.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-[#10a37f] font-mono text-xs mt-0.5">03</span>
-                      <span>Replies can include source passages so you see what the model used.</span>
-                    </li>
-                  </ul>
-                  <p className="text-xs text-zinc-600 mt-6 leading-relaxed border-t border-white/[0.06] pt-5">
-                    Shipped on purpose: a silent preview of the real UI. Replacing it with a narrated
-                    video is optional; steps are in the project repository for you when you want them.
-                  </p>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         </section>
 
-        {/* Architecture */}
-        <section id="architecture" className="animate-fade-in mb-24 md:mb-32 scroll-mt-28">
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-3 text-center">
-            Production-style architecture
-          </h2>
-          <p className="text-zinc-400 text-center max-w-2xl mx-auto mb-10">
-            Next.js frontend, Express orchestration, embeddings + vector search, file-backed
-            persistence, telemetry and eval hooks, documented for interviews and code review.
-          </p>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                icon: <Layers className="w-5 h-5" />,
-                title: 'Orchestration',
-                body: 'Routes queries to ingest, RAG, Q&A, verifier, or summarizer agents.',
-              },
-              {
-                icon: <Server className="w-5 h-5" />,
-                title: 'API layer',
-                body: 'REST + SSE streaming; workspace headers for scoped sessions.',
-              },
-              {
-                icon: <Search className="w-5 h-5" />,
-                title: 'Retrieval',
-                body: 'Chunking, embeddings, cosine similarity; swap for pgvector later.',
-              },
-              {
-                icon: <Database className="w-5 h-5" />,
-                title: 'Persistence',
-                body: 'JSON-backed sessions and vectors; configurable DATA_DIR for hosts.',
-              },
-              {
-                icon: <BarChart2 className="w-5 h-5" />,
-                title: 'Observability',
-                body: 'Telemetry routes, Prometheus metrics, eval run history.',
-              },
-              {
-                icon: <BookOpen className="w-5 h-5" />,
-                title: 'Docs',
-                body: 'Full diagrams and flows in the architecture guide.',
-                link: ARCHITECTURE_DOC,
-              },
-            ].map((card) => {
-              const inner = (
-                <>
-                  <div className="w-10 h-10 rounded-lg bg-[#10a37f]/15 text-[#10a37f] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                    {card.icon}
-                  </div>
-                  <h3 className="font-display font-semibold text-white mb-2 flex items-center gap-2">
-                    {card.title}
-                    {card.link && (
-                      <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-60" />
-                    )}
-                  </h3>
-                  <p className="text-sm text-zinc-400 leading-relaxed">{card.body}</p>
-                </>
-              )
-              const shell =
-                'group rounded-2xl border border-white/[0.08] bg-zinc-900/30 p-6 hover:border-[#10a37f]/30 hover:bg-zinc-900/50 transition-all block'
-              return card.link ? (
-                <a
-                  key={card.title}
-                  href={card.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={shell}
+        <section className="rounded-[32px] border border-white/[0.08] bg-gradient-to-br from-[#10a37f]/12 via-zinc-900/70 to-zinc-950 px-6 py-8 sm:px-8 sm:py-10">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] items-center">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Start from a template</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold text-white">Skip the blank page: open a realistic sample and chat right away.</h2>
+              <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+                Every template loads real rows or text into your workspace so the first question you ask already feels like a weekly ops or sales review.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {WORKSPACE_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => void handleLoadTemplate(template.id)}
+                  className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-4 text-left transition-colors hover:bg-black/35 hover:border-[#10a37f]/30"
                 >
-                  {inner}
-                </a>
-              ) : (
-                <div key={card.title} className={shell}>
-                  {inner}
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-8 text-center">
-            <a
-              href={ARCHITECTURE_DOC}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-medium transition-colors"
-            >
-              Read full architecture (Mermaid diagrams)
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </div>
-        </section>
-
-        {/* Features */}
-        <section id="features" className="animate-fade-in mb-20 md:mb-28 scroll-mt-28">
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-10 text-center">
-            Built for real workflows
-          </h2>
-          <div className="grid md:grid-cols-3 gap-5">
-            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
-              <FileText className="w-9 h-9 mb-5 text-[#10a37f]" />
-              <h3 className="font-display font-semibold text-lg text-white mb-2">Document analysis</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">
-                Revenue sheets, briefs, and ops updates: summaries, metrics, and grounded Q&A.
-              </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-100">{template.name}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{template.description}</p>
+                    </div>
+                    {isLoadingTemplate === template.id ? <Loader2 className="w-4 h-4 animate-spin text-[#10a37f]" /> : <ArrowRight className="w-4 h-4 text-[#10a37f]" />}
+                  </div>
+                </button>
+              ))}
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
-              <BarChart2 className="w-9 h-9 mb-5 text-[#10a37f]" />
-              <h3 className="font-display font-semibold text-lg text-white mb-2">RAG retrieval</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">
-                Semantic search surfaces the right evidence; responses can cite sources and scores.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-8 hover:border-white/[0.12] transition-colors">
-              <Zap className="w-9 h-9 mb-5 text-[#10a37f]" />
-              <h3 className="font-display font-semibold text-lg text-white mb-2">Multi-agent</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">
-                Specialized agents for analysis, verification, and summarization, routed for you.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* How it works */}
-        <section id="how-it-works" className="animate-fade-in mb-20 md:mb-28 scroll-mt-28">
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
-            How it works
-          </h2>
-          <p className="text-zinc-400 text-center max-w-lg mx-auto mb-12">
-            End-to-end path from upload to grounded answer; same mental model you’d use in a system
-            design interview.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { step: '1', title: 'Upload', desc: 'CSV, Excel, PDF, or text' },
-              { step: '2', title: 'Index', desc: 'Chunk + embed for semantic search' },
-              { step: '3', title: 'Route', desc: 'Orchestrator picks the best agent' },
-              { step: '4', title: 'Answer', desc: 'Streamed response + optional sources' },
-            ].map((item, i) => (
-              <div
-                key={item.step}
-                className="relative rounded-2xl border border-white/[0.08] bg-zinc-900/30 p-6 text-left"
-              >
-                {i < 3 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-2 w-4 h-px bg-gradient-to-r from-[#10a37f]/50 to-transparent z-10" />
-                )}
-                <div className="w-9 h-9 rounded-lg bg-[#10a37f] text-white font-bold flex items-center justify-center mb-4 text-sm">
-                  {item.step}
-                </div>
-                <h4 className="font-display font-medium text-white mb-1">{item.title}</h4>
-                <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Agents */}
-        <section id="agents" className="animate-fade-in mb-16 md:mb-24 scroll-mt-28">
-          <h2 className="font-display text-2xl md:text-3xl font-semibold text-white mb-4 text-center">
-            Agent roster
-          </h2>
-          <p className="text-zinc-400 text-center max-w-lg mx-auto mb-10">
-            Each role is explicit in the UI and in routing, easy to extend with new tools or policies.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { icon: Search, color: 'text-blue-400', name: 'RAG', desc: 'Retrieval-augmented answers' },
-              { icon: Bot, color: 'text-violet-400', name: 'Question', desc: 'Direct Q&A with context' },
-              { icon: CheckCircle, color: 'text-amber-400', name: 'Verifier', desc: 'Claims and consistency' },
-              { icon: FileText, color: 'text-pink-400', name: 'Summarizer', desc: 'Briefs and key points' },
-            ].map(({ icon: Icon, color, name, desc }) => (
-              <div
-                key={name}
-                className="rounded-2xl border border-white/[0.08] bg-zinc-900/20 p-5 hover:bg-zinc-900/40 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className={`w-5 h-5 ${color}`} />
-                  <span className="font-display font-medium text-white">{name}</span>
-                </div>
-                <p className="text-xs text-zinc-500">{desc}</p>
-              </div>
-            ))}
           </div>
         </section>
 
         {recentChats.length > 0 && (
-          <section className="mb-12">
-            <h3 className="text-xs text-zinc-500 mb-4 uppercase tracking-[0.2em] text-center">
-              Continue where you left off
-            </h3>
-            <div className="grid gap-3 max-w-lg mx-auto">
+          <section>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Continue working</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               {recentChats.map((chat) => (
                 <button
                   key={chat.id}
                   type="button"
                   onClick={() => void onLoadChat(chat)}
-                  className="rounded-xl p-4 text-left border border-white/[0.08] bg-zinc-900/40 hover:border-[#10a37f]/40 hover:bg-zinc-900/60 transition-all"
+                  className="rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4 text-left transition-colors hover:border-[#10a37f]/25 hover:bg-zinc-900/60"
                 >
-                  <p className="text-sm font-medium truncate text-white">{chat.title}</p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    {chat.messages.length} messages · {new Date(chat.updatedAt).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm font-medium text-white truncate">{toReadableConversationTitle(chat.title)}</p>
+                  <p className="mt-2 text-xs text-zinc-500">{chat.messages.length} messages</p>
                 </button>
               ))}
             </div>
@@ -810,19 +648,17 @@ export function Landing({
         )}
       </main>
 
-      <footer className="relative z-10 border-t border-white/[0.06] px-4 md:px-8 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-zinc-500">
-          <span>Built by Dixit Jain · AgentFlow</span>
-          <div className="flex flex-wrap justify-center gap-8">
-            <a href="https://github.com/thedixitjain" className="hover:text-white transition-colors">
-              GitHub
-            </a>
-            <a href="https://linkedin.com/in/thedixitjain" className="hover:text-white transition-colors">
-              LinkedIn
-            </a>
-            <a href={ARCHITECTURE_DOC} className="hover:text-white transition-colors">
-              Architecture
-            </a>
+      <footer className="relative z-10 border-t border-white/[0.06] px-4 sm:px-6 lg:px-8 py-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 text-sm text-zinc-500">
+          <div>
+            <p className="text-zinc-300">AgentFlow</p>
+            <p className="mt-1 text-xs">Turn weekly business documents into summaries, risks, and actions your team can act on.</p>
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="/security" className="hover:text-white transition-colors">Security &amp; data</a>
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href={LINKEDIN_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">LinkedIn</a>
           </div>
         </div>
       </footer>

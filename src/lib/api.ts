@@ -1,10 +1,36 @@
 /** Local dev: default Express URL. Vercel prod: set NEXT_PUBLIC_API_URL=/agentflow-api (same-origin proxy; see next.config.js). */
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 const WORKSPACE_STORAGE_KEY = 'agentflow_workspace_id';
+const AUTH_WORKSPACE_STORAGE_KEY = 'agentflow_authenticated_workspace_id';
+
+function normalizeWorkspaceIdentity(identity: string): string {
+  return `user-${identity.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
+
+export function syncWorkspaceIdentity(identity: string | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (!identity) {
+    window.localStorage.removeItem(AUTH_WORKSPACE_STORAGE_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(
+    AUTH_WORKSPACE_STORAGE_KEY,
+    normalizeWorkspaceIdentity(identity),
+  );
+}
 
 function getWorkspaceId(): string {
   if (typeof window === 'undefined') {
     return 'local-workspace';
+  }
+
+  const authenticatedWorkspace = window.localStorage.getItem(AUTH_WORKSPACE_STORAGE_KEY);
+  if (authenticatedWorkspace) {
+    return authenticatedWorkspace;
   }
 
   const existing = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
@@ -22,6 +48,7 @@ export interface Session {
   workspaceId: string;
   documents: Document[];
   messages: Message[];
+  reports: WorkspaceReport[];
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +85,21 @@ export interface Message {
     tokensUsed?: number;
     responseTime?: number;
   };
+}
+
+export interface WorkspaceReport {
+  id: string;
+  title: string;
+  focus: string;
+  overview: string;
+  highlights: string[];
+  risks: string[];
+  actions: string[];
+  followUps: string[];
+  confidence: 'high' | 'medium' | 'low';
+  source: 'llm' | 'heuristic';
+  documentId?: string;
+  generatedAt: string;
 }
 
 export interface AgentState {
@@ -175,11 +217,44 @@ export interface EvalRun {
   }>;
 }
 
+export interface PersistenceStatus {
+  mode: 'local-json' | 'database-ready';
+  provider: string;
+  databaseConfigured: boolean;
+  lastSyncedAt: string | null;
+  message: string;
+}
+
+export interface PersistenceSyncResult {
+  queued: boolean;
+  persisted: boolean;
+  message: string;
+  status: PersistenceStatus;
+}
+
 class ApiClient {
   private baseUrl: string;
 
   constructor(baseUrl: string = API_URL) {
     this.baseUrl = baseUrl;
+  }
+
+  private async getErrorMessage(response: Response): Promise<string> {
+    const text = await response.text().catch(() => '');
+    let message = `HTTP ${response.status}`;
+
+    try {
+      const json = JSON.parse(text) as { error?: string };
+      if (json.error) {
+        message = json.error;
+      }
+    } catch {
+      if (text && text.length < 400) {
+        message = text;
+      }
+    }
+
+    return message;
   }
 
   private async request<T>(
@@ -196,18 +271,15 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      let message = `HTTP ${response.status}`;
-      try {
-        const json = JSON.parse(text) as { error?: string };
-        if (json.error) message = json.error;
-      } catch {
-        if (text && text.length < 400) message = text;
-      }
-      throw new Error(message);
+      throw new Error(await this.getErrorMessage(response));
     }
 
-    return response.json();
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    const text = await response.text();
+    return text ? (JSON.parse(text) as T) : (undefined as T);
   }
 
   // Sessions
@@ -282,14 +354,16 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(text.slice(0, 300) || `Stream failed (HTTP ${response.status})`);
+      throw new Error(await this.getErrorMessage(response));
     }
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     if (!reader) throw new Error('No response body');
+
+    let streamError: string | null = null;
+    let completed = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -313,15 +387,25 @@ class ApiClient {
             }
             if (parsed.error && onError) {
               onError(parsed.error);
+              streamError = parsed.error;
             }
             if (parsed.done && parsed.agentUsed) {
               onComplete(parsed.agentUsed);
+              completed = true;
             }
           } catch {
             // Skip invalid JSON
           }
         }
       }
+    }
+
+    if (streamError) {
+      throw new Error(streamError);
+    }
+
+    if (!completed) {
+      throw new Error('The response ended before the assistant finished replying.');
     }
   }
 
@@ -347,6 +431,27 @@ class ApiClient {
     return this.request('/evals/run', {
       method: 'POST',
       body: JSON.stringify({ suiteId }),
+    });
+  }
+
+  async getPersistenceStatus(): Promise<PersistenceStatus> {
+    return this.request('/persistence/status');
+  }
+
+  async persistSession(id: string): Promise<PersistenceSyncResult> {
+    return this.request(`/sessions/${id}/persist`, {
+      method: 'POST',
+    });
+  }
+
+  async listReports(sessionId: string): Promise<{ reports: WorkspaceReport[] }> {
+    return this.request(`/sessions/${sessionId}/reports`);
+  }
+
+  async generateReport(sessionId: string, documentId?: string): Promise<WorkspaceReport> {
+    return this.request(`/sessions/${sessionId}/reports/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ documentId }),
     });
   }
 

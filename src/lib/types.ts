@@ -16,6 +16,8 @@ export interface Message {
   timestamp: Date
   isStreaming?: boolean
   agentType?: string
+  canRetry?: boolean
+  retryPrompt?: string
   sources?: Array<{
     content: string
     score: number

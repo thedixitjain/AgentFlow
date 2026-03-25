@@ -1,34 +1,30 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { AlertCircle, X } from 'lucide-react'
+import { signIn, signOut, useSession } from 'next-auth/react'
 import { Sidebar } from '@/components/Sidebar'
 import { Chat } from '@/components/Chat'
 import { Landing } from '@/components/Landing'
 import { InsightsPanel } from '@/components/InsightsPanel'
+import { BusinessReportPanel } from '@/components/BusinessReportPanel'
 import { SystemInsightsPanel } from '@/components/SystemInsightsPanel'
+import { AppToast, type AppToastState } from '@/components/AppToast'
 import { DocumentFile, Message, ChatHistory, DocumentInsight } from '@/lib/types'
+import { buildWorkspaceTemplateDocument, getWorkspaceTemplate, type WorkspaceTemplateId } from '@/lib/demoTemplates'
 import { generateInsights } from '@/lib/insights'
-import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun } from '@/lib/api'
-import { getPublicApiUrl, isProductionApiLikelyMisconfigured } from '@/lib/env'
+import { api, type Session, type Document as ApiDocument, type Message as ApiMessage, type SystemStats, type EvalRun, type PersistenceStatus, type WorkspaceReport } from '@/lib/api'
+import { syncWorkspaceIdentity } from '@/lib/api'
+import {
+  CHAT_CONNECTION_ERROR_MESSAGE,
+  toReadableConversationTitle,
+  toReadableDocumentName,
+  toUserFacingAppError,
+} from '@/lib/businessUx'
+import { isProductionApiLikelyMisconfigured } from '@/lib/env'
 import { isSessionNotFoundError } from '@/lib/sessionErrors'
 import { scrollWindowToTop } from '@/lib/scrollToTop'
-
-function formatAppError(e: unknown): string {
-  const msg = e instanceof Error ? e.message : String(e)
-  if (/session not found/i.test(msg)) {
-    return 'That chat is no longer on the server (sessions reset after a deploy, disk clear, or cold start on free hosting). Use New chat or upload your file again.'
-  }
-  if (
-    e instanceof TypeError ||
-    msg.includes('Failed to fetch') ||
-    msg.includes('NetworkError') ||
-    msg.includes('Load failed')
-  ) {
-    return 'Cannot reach the API. On Vercel, set NEXT_PUBLIC_API_URL to your Render URL ending in /api (see README). On Render, set CORS_ORIGIN to this site’s URL (comma-separated if you also use localhost).'
-  }
-  return msg || 'Something went wrong.'
-}
+import { clearWorkspaceState, loadWorkspaceState, resolveRestoredDocumentName, saveWorkspaceState } from '@/lib/workspaceState'
 
 function mapDocument(document: ApiDocument): DocumentFile {
   return {
@@ -56,7 +52,10 @@ function mapMessage(message: ApiMessage): Message {
 
 function mapSessionToHistory(session: Session): ChatHistory {
   const firstUserMessage = session.messages.find(message => message.role === 'user')?.content
-  const title = firstUserMessage?.slice(0, 50) || session.documents[0]?.name || 'New Chat'
+  const title = toReadableConversationTitle(
+    firstUserMessage?.slice(0, 50) || toReadableDocumentName(session.documents[0]?.name) || 'New Chat',
+    'New Chat',
+  )
 
   return {
     id: session.id,
@@ -68,6 +67,7 @@ function mapSessionToHistory(session: Session): ChatHistory {
 }
 
 export default function Home() {
+  const { data: session, status: authStatus } = useSession()
   const [documents, setDocuments] = useState<DocumentFile[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -77,15 +77,75 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
   const [insights, setInsights] = useState<DocumentInsight[]>([])
   const [showInsights, setShowInsights] = useState(false)
+  const [reports, setReports] = useState<WorkspaceReport[]>([])
+  const [showBusinessReport, setShowBusinessReport] = useState(true)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [showSystemInsights, setShowSystemInsights] = useState(false)
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
   const [recentEval, setRecentEval] = useState<EvalRun | null>(null)
   const [appError, setAppError] = useState<string | null>(null)
   const [configWarning, setConfigWarning] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [toast, setToast] = useState<AppToastState | null>(null)
+  const [persistenceStatus, setPersistenceStatus] = useState<PersistenceStatus | null>(null)
+  const previousAuthIdentity = useRef<string | null | undefined>(undefined)
+
+  const authUser = session?.user ?? null
+  const authIdentity = authUser?.email?.toLowerCase() ?? null
+  const isGoogleAuthConfigured = process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true'
 
   useEffect(() => {
     setConfigWarning(isProductionApiLikelyMisconfigured())
   }, [])
+
+  const pushToast = useCallback((message: string, tone: AppToastState['tone'] = 'info') => {
+    setToast({
+      id: Date.now(),
+      message,
+      tone,
+    })
+  }, [])
+
+  const reportAppError = useCallback((error: unknown, fallback?: string) => {
+    const message = toUserFacingAppError(error, fallback)
+    setAppError(message)
+    pushToast(message, 'error')
+    return message
+  }, [pushToast])
+
+  useEffect(() => {
+    if (!toast) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setToast(current => (current?.id === toast.id ? null : current))
+    }, 5000)
+
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  const refreshPersistenceStatus = useCallback(async () => {
+    try {
+      const status = await api.getPersistenceStatus()
+      setPersistenceStatus(status)
+    } catch (error) {
+      console.error('Failed to load persistence status:', error)
+    }
+  }, [])
+
+  const queuePersistenceSync = useCallback(async (sessionId: string) => {
+    try {
+      const result = await api.persistSession(sessionId)
+      setPersistenceStatus(result.status)
+    } catch (error) {
+      console.warn('Persistence sync stub failed:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshPersistenceStatus()
+  }, [refreshPersistenceStatus])
 
   const refreshChatHistory = useCallback(async () => {
     try {
@@ -95,6 +155,44 @@ export default function Home() {
       console.error('Failed to refresh sessions:', error)
     }
   }, [])
+
+  useEffect(() => {
+    if (authStatus === 'loading') {
+      return
+    }
+
+    syncWorkspaceIdentity(authIdentity)
+
+    if (previousAuthIdentity.current === undefined) {
+      previousAuthIdentity.current = authIdentity
+      return
+    }
+
+    if (previousAuthIdentity.current === authIdentity) {
+      return
+    }
+
+    previousAuthIdentity.current = authIdentity
+    setMessages([])
+    setDocuments([])
+    setActiveDocument(null)
+    setCurrentChatId('')
+    setInsights([])
+    setReports([])
+    setShowInsights(false)
+    setShowBusinessReport(true)
+    setShowSystemInsights(false)
+    setShowLanding(true)
+    clearWorkspaceState()
+    void refreshChatHistory()
+
+    pushToast(
+      authIdentity
+        ? 'Signed in with Google. Your workspace is now scoped to your account.'
+        : 'Signed out. AgentFlow switched back to the local workspace.',
+      'info',
+    )
+  }, [authIdentity, authStatus, pushToast, refreshChatHistory])
 
   const refreshSystemInsights = useCallback(async () => {
     try {
@@ -117,7 +215,15 @@ export default function Home() {
   }, [refreshSystemInsights])
 
   const loadSession = useCallback(
-    async (sessionId: string) => {
+    async (
+      sessionId: string,
+      options?: {
+        preferredDocument?: string | null
+        showInsights?: boolean
+        showBusinessReport?: boolean
+        showSystemInsights?: boolean
+      }
+    ) => {
       let session: Session
       try {
         session = await api.getSession(sessionId)
@@ -134,14 +240,24 @@ export default function Home() {
       setCurrentChatId(session.id)
       setDocuments(nextDocuments)
       setMessages(nextMessages)
-      setActiveDocument(nextDocuments[nextDocuments.length - 1]?.name || null)
+      setReports(session.reports || [])
+      const restoredDocumentName = resolveRestoredDocumentName(
+        nextDocuments.map(document => document.name),
+        options?.preferredDocument || null,
+      )
+      setActiveDocument(restoredDocumentName)
       setShowLanding(false)
+      setIsSidebarOpen(false)
+      setShowBusinessReport(
+        options?.showBusinessReport ?? (((session.reports?.length ?? 0) > 0) || nextDocuments.length > 0),
+      )
+      setShowSystemInsights(Boolean(options?.showSystemInsights))
 
-      const activeDoc = nextDocuments[nextDocuments.length - 1]
+      const activeDoc = nextDocuments.find(document => document.name === restoredDocumentName)
       if (activeDoc) {
         const docInsights = generateInsights(activeDoc)
         setInsights(docInsights)
-        setShowInsights(docInsights.length > 0)
+        setShowInsights((options?.showInsights ?? true) && docInsights.length > 0)
       } else {
         setInsights([])
         setShowInsights(false)
@@ -154,15 +270,19 @@ export default function Home() {
     const session = await api.createSession()
     setCurrentChatId(session.id)
     setDocuments([])
-    setMessages([])
-    setActiveDocument(null)
-    setInsights([])
-    setShowInsights(false)
-    setShowSystemInsights(false)
-    setShowLanding(false)
+      setMessages([])
+      setActiveDocument(null)
+      setInsights([])
+      setReports([])
+      setShowInsights(false)
+      setShowBusinessReport(true)
+      setShowSystemInsights(false)
+      setShowLanding(false)
+    setIsSidebarOpen(false)
     await refreshChatHistory()
+    void queuePersistenceSync(session.id)
     return session.id
-  }, [refreshChatHistory])
+  }, [queuePersistenceSync, refreshChatHistory])
 
   const ensureSession = useCallback(async () => {
     if (currentChatId) {
@@ -176,7 +296,9 @@ export default function Home() {
         setDocuments([])
         setActiveDocument(null)
         setInsights([])
+        setReports([])
         setShowInsights(false)
+        setShowBusinessReport(true)
         await refreshChatHistory()
       }
     }
@@ -184,8 +306,58 @@ export default function Home() {
   }, [createNewSession, currentChatId, refreshChatHistory])
 
   useEffect(() => {
-    void refreshChatHistory()
-  }, [refreshChatHistory])
+    if (authStatus === 'loading') {
+      return
+    }
+
+    let cancelled = false
+
+    const restoreWorkspace = async () => {
+      const savedWorkspace = loadWorkspaceState()
+
+      try {
+        const sessions = await api.listSessions()
+        if (cancelled) {
+          return
+        }
+
+        setChatHistory(sessions.map(mapSessionToHistory))
+
+        if (!savedWorkspace?.lastSessionId) {
+          return
+        }
+
+        await loadSession(savedWorkspace.lastSessionId, {
+          preferredDocument: savedWorkspace.activeDocument,
+          showInsights: savedWorkspace.showInsights,
+          showBusinessReport: savedWorkspace.showBusinessReport,
+          showSystemInsights: savedWorkspace.showSystemInsights,
+        })
+
+        if (!cancelled) {
+          pushToast('Restored your last workspace.', 'info')
+        }
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+
+        if (savedWorkspace?.lastSessionId && isSessionNotFoundError(error)) {
+          clearWorkspaceState()
+          pushToast('Your last workspace was no longer available, so AgentFlow opened on the landing page.', 'info')
+          return
+        }
+
+        console.error('Failed to restore workspace:', error)
+      }
+    }
+
+    void restoreWorkspace()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authStatus, loadSession, pushToast])
 
   /** After idle / deploy, server session list can change; refresh when user returns to the tab. */
   useEffect(() => {
@@ -201,6 +373,21 @@ export default function Home() {
       void refreshSystemInsights()
     }
   }, [refreshSystemInsights, showSystemInsights])
+
+  useEffect(() => {
+    if (showLanding || !currentChatId) {
+      clearWorkspaceState()
+      return
+    }
+
+    saveWorkspaceState({
+      lastSessionId: currentChatId,
+      activeDocument,
+      showInsights: showInsights && insights.length > 0,
+      showBusinessReport,
+      showSystemInsights,
+    })
+  }, [activeDocument, currentChatId, insights.length, showBusinessReport, showInsights, showLanding, showSystemInsights])
 
   const handleFileUpload = useCallback(async (file: DocumentFile) => {
     setAppError(null)
@@ -228,24 +415,64 @@ export default function Home() {
       })
       setActiveDocument(mappedDocument.name)
       setShowLanding(false)
+      setIsSidebarOpen(false)
+      setShowBusinessReport(true)
 
       const docInsights = generateInsights(mappedDocument)
       setInsights(docInsights)
       setShowInsights(docInsights.length > 0)
       await refreshChatHistory()
+      void queuePersistenceSync(sessionId)
     } catch (error) {
       console.error('Failed to save document:', error)
-      setAppError(formatAppError(error))
+      reportAppError(error, 'We could not save that document. Please try again.')
     }
-  }, [ensureSession, refreshChatHistory])
+  }, [ensureSession, queuePersistenceSync, refreshChatHistory, reportAppError])
+
+  const handleUploadError = useCallback((message: string) => {
+    const friendlyMessage = toUserFacingAppError(message, 'We could not upload that file. Please try again.')
+    setAppError(friendlyMessage)
+    pushToast(friendlyMessage, 'error')
+  }, [pushToast])
+
+  const handleLoadTemplate = useCallback(async (templateId: WorkspaceTemplateId) => {
+    try {
+      const template = getWorkspaceTemplate(templateId)
+      await handleFileUpload(buildWorkspaceTemplateDocument(templateId))
+      pushToast(`${template.name} template loaded.`, 'success')
+    } catch (error) {
+      console.error('Failed to load template:', error)
+      reportAppError(error, 'We could not load that template. Please try again.')
+    }
+  }, [handleFileUpload, pushToast, reportAppError])
+
+  const handleAuthClick = useCallback((mode: 'login' | 'signup') => {
+    if (!isGoogleAuthConfigured) {
+      pushToast(
+        'Sign-in isn’t configured here. Enable Google auth in your environment to use accounts, or continue without signing in.',
+        'info',
+      )
+      return
+    }
+
+    void signIn('google', { callbackUrl: '/' })
+    if (mode === 'signup') {
+      pushToast('Continue with Google to create your workspace.', 'info')
+    }
+  }, [isGoogleAuthConfigured, pushToast])
+
+  const handleSignOut = useCallback(() => {
+    void signOut({ callbackUrl: '/' })
+  }, [])
 
   const handleSendMessage = useCallback(async (content: string) => {
+    setAppError(null)
     let sessionId: string
     try {
       sessionId = await ensureSession()
     } catch (error) {
       console.error('Failed to open session:', error)
-      setAppError(formatAppError(error))
+      reportAppError(error, 'We could not open the workspace. Please try again.')
       return
     }
 
@@ -260,6 +487,20 @@ export default function Home() {
     setIsLoading(true)
 
     const streamingId = `stream-${Date.now()}`
+    const applyRetryableAssistantError = () => {
+      setMessages(prev => prev.map(message =>
+        message.id === streamingId
+          ? {
+              ...message,
+              content: CHAT_CONNECTION_ERROR_MESSAGE,
+              isStreaming: false,
+              canRetry: true,
+              retryPrompt: content,
+            }
+          : message
+      ))
+    }
+
     setMessages(prev => [...prev, {
       id: streamingId,
       role: 'assistant',
@@ -296,13 +537,7 @@ export default function Home() {
               : message
           ))
         },
-        (error) => {
-          setMessages(prev => prev.map(message =>
-            message.id === streamingId
-              ? { ...message, content: error, isStreaming: false }
-              : message
-          ))
-        }
+        () => applyRetryableAssistantError(),
       )
 
       try {
@@ -315,27 +550,50 @@ export default function Home() {
         }
       }
       await refreshChatHistory()
+      void queuePersistenceSync(sessionId)
     } catch (error) {
       console.error('Failed to send message:', error)
-      const lost = isSessionNotFoundError(error)
-      if (lost) {
-        setAppError(formatAppError(error))
-      }
-      setMessages(prev => prev.map(message =>
-        message.id === streamingId
-          ? {
-              ...message,
-              content: lost
-                ? 'Session expired on the server. Click New chat, then try again.'
-                : 'Could not get a reply. Check your connection and try again.',
-              isStreaming: false,
-            }
-          : message
-      ))
+      applyRetryableAssistantError()
+      pushToast(CHAT_CONNECTION_ERROR_MESSAGE, 'error')
     } finally {
       setIsLoading(false)
     }
-  }, [activeDocument, documents, ensureSession, loadSession, refreshChatHistory])
+  }, [activeDocument, documents, ensureSession, loadSession, pushToast, queuePersistenceSync, refreshChatHistory, reportAppError])
+
+  const handleRetryMessage = useCallback((content: string) => {
+    void handleSendMessage(content)
+  }, [handleSendMessage])
+
+  const handleGenerateReport = useCallback(async () => {
+    setAppError(null)
+
+    let sessionId = currentChatId
+    if (!sessionId) {
+      try {
+        sessionId = await ensureSession()
+      } catch (error) {
+        console.error('Failed to open session for report generation:', error)
+        reportAppError(error, 'We could not open the workspace report. Please try again.')
+        return
+      }
+    }
+
+    setIsGeneratingReport(true)
+
+    try {
+      const activeDoc = documents.find(document => document.name === activeDocument)
+      const report = await api.generateReport(sessionId, activeDoc?.id)
+      setReports(prev => [report, ...prev.filter(existing => existing.id !== report.id)])
+      setShowBusinessReport(true)
+      pushToast('Decision brief updated.', 'success')
+      void queuePersistenceSync(sessionId)
+    } catch (error) {
+      console.error('Failed to generate workspace report:', error)
+      reportAppError(error, 'We could not generate the decision brief. Please try again.')
+    } finally {
+      setIsGeneratingReport(false)
+    }
+  }, [activeDocument, currentChatId, documents, ensureSession, pushToast, queuePersistenceSync, reportAppError])
 
   const handleRemoveDocument = useCallback((name: string) => {
     void (async () => {
@@ -378,10 +636,10 @@ export default function Home() {
         await loadSession(chat.id)
       } catch (error) {
         console.error('Failed to load chat:', error)
-        setAppError(formatAppError(error))
+        reportAppError(error, 'We could not open that conversation. Please try again.')
       }
     },
-    [loadSession]
+    [loadSession, reportAppError]
   )
 
   const handleLandingStart = useCallback(async () => {
@@ -390,9 +648,9 @@ export default function Home() {
       await createNewSession()
     } catch (error) {
       console.error('Failed to start workspace:', error)
-      setAppError(formatAppError(error))
+      reportAppError(error, 'We could not start a new workspace. Please try again.')
     }
-  }, [createNewSession])
+  }, [createNewSession, reportAppError])
 
   const handleDeleteChat = useCallback((id: string) => {
     void (async () => {
@@ -405,9 +663,12 @@ export default function Home() {
           setActiveDocument(null)
           setCurrentChatId('')
           setInsights([])
+          setReports([])
           setShowInsights(false)
+          setShowBusinessReport(true)
           setShowSystemInsights(false)
           setShowLanding(true)
+          clearWorkspaceState()
         }
       } catch (error) {
         console.error('Failed to delete session:', error)
@@ -422,30 +683,42 @@ export default function Home() {
     setActiveDocument(null)
     setCurrentChatId('')
     setInsights([])
+    setReports([])
     setShowInsights(false)
+    setShowBusinessReport(true)
     setShowSystemInsights(false)
     setAppError(null)
+    setIsSidebarOpen(false)
+    clearWorkspaceState()
     queueMicrotask(() => scrollWindowToTop())
     requestAnimationFrame(() => scrollWindowToTop())
   }, [])
+
+  const latestReport = reports[0] || null
 
   if (showLanding) {
     return (
       <Landing
         onStart={handleLandingStart}
         onFileUpload={handleFileUpload}
+        onUploadError={handleUploadError}
         recentChats={chatHistory.slice(0, 3)}
         onLoadChat={handleLoadChat}
+        onLoadTemplate={handleLoadTemplate}
+        onAuthClick={handleAuthClick}
+        onSignOut={handleSignOut}
         errorMessage={appError}
         onDismissError={() => setAppError(null)}
         configWarning={configWarning}
-        configuredApiUrl={getPublicApiUrl()}
+        persistenceStatus={persistenceStatus}
+        authUser={authUser}
       />
     )
   }
 
   return (
     <div className="h-screen flex flex-col bg-[var(--chat-bg)]">
+      <AppToast toast={toast} onDismiss={() => setToast(null)} />
       {appError && (
         <div className="shrink-0 flex items-start gap-2 px-4 py-2.5 bg-red-950/90 border-b border-red-500/30 text-red-100 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -461,60 +734,85 @@ export default function Home() {
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-      <Sidebar
-        documents={documents}
-        activeDocument={activeDocument}
-        chatHistory={chatHistory}
-        currentChatId={currentChatId}
-        onFileUpload={handleFileUpload}
-        onSelectDocument={(name) => {
-          setActiveDocument(name)
-          const document = documents.find(item => item.name === name)
-          if (document) {
-            const docInsights = generateInsights(document)
-            setInsights(docInsights)
-            setShowInsights(docInsights.length > 0)
-          }
-        }}
-        onRemoveDocument={handleRemoveDocument}
-        onNewChat={handleNewChat}
-        onLoadChat={handleLoadChat}
-        onDeleteChat={handleDeleteChat}
-        onBackToHome={handleBackToHome}
-        onOpenSystemInsights={() => {
-          setShowSystemInsights(true)
-          void refreshSystemInsights()
-        }}
-      />
-
-      <Chat
-        messages={messages}
-        isLoading={isLoading}
-        onSendMessage={handleSendMessage}
-        hasDocument={!!activeDocument}
-        documentName={activeDocument || undefined}
-        sessionId={currentChatId || undefined}
-        onNavigateHome={handleBackToHome}
-      />
-
-      {showInsights && insights.length > 0 && (
-        <InsightsPanel
-          insights={insights}
-          onClose={() => setShowInsights(false)}
-          onNavigateHome={handleBackToHome}
+        <Sidebar
+          documents={documents}
+          activeDocument={activeDocument}
+          chatHistory={chatHistory}
+          currentChatId={currentChatId}
+          onFileUpload={handleFileUpload}
+          onSelectDocument={(name) => {
+            setActiveDocument(name)
+            const document = documents.find(item => item.name === name)
+            if (document) {
+              const docInsights = generateInsights(document)
+              setInsights(docInsights)
+              setShowInsights(docInsights.length > 0)
+            }
+          }}
+          onRemoveDocument={handleRemoveDocument}
+          onNewChat={handleNewChat}
+          onLoadChat={handleLoadChat}
+          onDeleteChat={handleDeleteChat}
+          onBackToHome={handleBackToHome}
+          onOpenSystemInsights={() => {
+            setShowSystemInsights(true)
+            void refreshSystemInsights()
+          }}
+          onLoadTemplate={handleLoadTemplate}
+          onAuthClick={handleAuthClick}
+          onSignOut={handleSignOut}
+          onUploadError={handleUploadError}
+          isMobileOpen={isSidebarOpen}
+          onCloseMobile={() => setIsSidebarOpen(false)}
+          persistenceStatus={persistenceStatus}
+          authUser={authUser}
         />
-      )}
 
-      {showSystemInsights && (
-        <SystemInsightsPanel
-          stats={systemStats}
-          recentEval={recentEval}
-          onRefresh={refreshSystemInsights}
-          onRunEval={runEvalSuite}
-          onClose={() => setShowSystemInsights(false)}
+        <Chat
+          messages={messages}
+          isLoading={isLoading}
+          onSendMessage={handleSendMessage}
+          onRetryMessage={handleRetryMessage}
+          onOpenReport={() => setShowBusinessReport(true)}
+          reportCount={reports.length}
+          isGeneratingReport={isGeneratingReport}
+          hasDocument={!!activeDocument}
+          documentName={activeDocument || undefined}
           onNavigateHome={handleBackToHome}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onLoadTemplate={handleLoadTemplate}
         />
-      )}
+
+        {showBusinessReport && (
+          <BusinessReportPanel
+            report={latestReport}
+            reportCount={reports.length}
+            isGenerating={isGeneratingReport}
+            activeDocument={activeDocument}
+            onGenerate={handleGenerateReport}
+            onClose={() => setShowBusinessReport(false)}
+            onNavigateHome={handleBackToHome}
+          />
+        )}
+
+        {showInsights && insights.length > 0 && (
+          <InsightsPanel
+            insights={insights}
+            onClose={() => setShowInsights(false)}
+            onNavigateHome={handleBackToHome}
+          />
+        )}
+
+        {showSystemInsights && (
+          <SystemInsightsPanel
+            stats={systemStats}
+            recentEval={recentEval}
+            onRefresh={refreshSystemInsights}
+            onRunEval={runEvalSuite}
+            onClose={() => setShowSystemInsights(false)}
+            onNavigateHome={handleBackToHome}
+          />
+        )}
       </div>
     </div>
   )

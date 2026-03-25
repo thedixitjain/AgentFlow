@@ -10,6 +10,9 @@ import { ragService } from '../services/rag.js';
 import { vectorStore } from '../services/vectorStore.js';
 import { telemetryService } from '../services/telemetry.js';
 import { evalService } from '../services/evals.js';
+import { databaseSyncService } from '../services/databaseSync.js';
+import { reportingService } from '../services/reporting.js';
+import { getErrorMessage, getErrorStatus } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { register } from '../utils/metrics.js';
 import type { Document, DocumentType, Message } from '../types/index.js';
@@ -52,13 +55,17 @@ router.get('/telemetry', (req: Request, res: Response) => {
   res.json(telemetryService.getSummary());
 });
 
+router.get('/persistence/status', (_req: Request, res: Response) => {
+  res.json(databaseSyncService.getStatus());
+});
+
 router.post('/sessions', (req: Request, res: Response) => {
   try {
     const session = sessionService.createSession(getWorkspaceId(req), req.body.name);
     res.status(201).json(session);
   } catch (error) {
     logger.error('Failed to create session', { error });
-    res.status(500).json({ error: 'Failed to create session' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to create session') });
   }
 });
 
@@ -81,6 +88,54 @@ router.delete('/sessions/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Session not found' });
   }
   res.status(204).send();
+});
+
+router.post('/sessions/:id/persist', async (req: Request, res: Response) => {
+  try {
+    const session = sessionService.getSession(req.params.id, getWorkspaceId(req));
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const result = await databaseSyncService.syncSession(session);
+    res.json(result);
+  } catch (error) {
+    logger.error('Session persistence handoff failed', { error });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to queue session persistence') });
+  }
+});
+
+router.get('/sessions/:id/reports', (req: Request, res: Response) => {
+  const session = sessionService.getSession(req.params.id, getWorkspaceId(req));
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  res.json({
+    reports: sessionService.getReports(session.id),
+  });
+});
+
+router.post('/sessions/:id/reports/generate', async (req: Request, res: Response) => {
+  try {
+    const session = sessionService.getSession(req.params.id, getWorkspaceId(req));
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const documentId = typeof req.body?.documentId === 'string' ? req.body.documentId : undefined;
+    const document = documentId
+      ? sessionService.getDocument(session.id, documentId)
+      : session.documents[session.documents.length - 1];
+
+    const report = await reportingService.generateWorkspaceReport(session, document || undefined);
+    sessionService.addReport(session.id, report);
+
+    res.status(201).json(report);
+  } catch (error) {
+    logger.error('Workspace report generation failed', { error });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to generate workspace report') });
+  }
 });
 
 router.post('/sessions/:sessionId/documents/parsed', (req: Request, res: Response) => {
@@ -125,7 +180,7 @@ router.post('/sessions/:sessionId/documents/parsed', (req: Request, res: Respons
     res.status(201).json(document);
   } catch (error) {
     logger.error('Parsed document save failed', { error });
-    res.status(500).json({ error: 'Failed to save document' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to save document') });
   }
 });
 
@@ -240,7 +295,7 @@ router.post('/sessions/:sessionId/documents', upload.single('file'), async (req:
     res.status(201).json(document);
   } catch (error) {
     logger.error('Document upload failed', { error });
-    res.status(500).json({ error: 'Failed to upload document' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to upload document') });
   }
 });
 
@@ -311,7 +366,7 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
     });
   } catch (error) {
     logger.error('Chat failed', { error });
-    res.status(500).json({ error: 'Failed to process message' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to process message') });
   }
 });
 
@@ -329,10 +384,6 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
 
     const userMessage: Message = {
       id: uuidv4(),
@@ -373,6 +424,10 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
     };
     sessionService.addMessage(sessionId, assistantMessage);
 
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     // Stream the response
     const words = result.response.split(' ');
     for (const word of words) {
@@ -389,7 +444,16 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
     res.end();
   } catch (error) {
     logger.error('Streaming chat failed', { error });
-    res.write(`data: ${JSON.stringify({ error: 'Failed to process message' })}\n\n`);
+    const message = getErrorMessage(error, 'Failed to process message');
+    const status = getErrorStatus(error);
+
+    if (!res.headersSent) {
+      res.status(status).json({ error: message });
+      return;
+    }
+
+    res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+    res.write('data: [DONE]\n\n');
     res.end();
   }
 });
@@ -457,7 +521,7 @@ router.post('/rag/index', async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('RAG indexing failed', { error });
-    res.status(500).json({ error: 'Failed to index document' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to index document') });
   }
 });
 
@@ -474,7 +538,7 @@ router.post('/rag/query', async (req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     logger.error('RAG query failed', { error });
-    res.status(500).json({ error: 'Failed to process RAG query' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to process RAG query') });
   }
 });
 
@@ -498,7 +562,7 @@ router.post('/rag/search', async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Semantic search failed', { error });
-    res.status(500).json({ error: 'Failed to perform semantic search' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to perform semantic search') });
   }
 });
 
@@ -529,7 +593,7 @@ router.post('/evals/run', async (req: Request, res: Response) => {
     res.json(run);
   } catch (error) {
     logger.error('Eval run failed', { error });
-    res.status(500).json({ error: 'Failed to run eval suite' });
+    res.status(getErrorStatus(error)).json({ error: getErrorMessage(error, 'Failed to run eval suite') });
   }
 });
 

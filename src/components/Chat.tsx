@@ -16,28 +16,38 @@ import {
   FileText,
   Info,
   ArrowRight,
+  ClipboardList,
+  PanelLeft,
+  RefreshCcw,
+  Wand2,
 } from 'lucide-react'
 import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 import { Message } from '@/lib/types'
+import { WORKSPACE_TEMPLATES, type WorkspaceTemplateId } from '@/lib/demoTemplates'
+import { normalizeChatInput, toReadableDocumentName } from '@/lib/businessUx'
 
 interface ChatProps {
   messages: Message[]
   isLoading: boolean
   onSendMessage: (message: string) => void
+  onRetryMessage?: (message: string) => void
+  onOpenReport?: () => void
+  reportCount?: number
+  isGeneratingReport?: boolean
   hasDocument: boolean
   documentName?: string
-  /** Backend session id, shown so visitors understand state is persisted */
-  sessionId?: string
   /** Return to main landing (top); same as sidebar logo */
   onNavigateHome?: () => void
+  onOpenSidebar?: () => void
+  onLoadTemplate?: (templateId: WorkspaceTemplateId) => void
 }
 
 const AGENT_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  rag: { icon: <Search className="w-4 h-4" />, color: '#3b82f6', label: 'RAG Agent' },
-  question: { icon: <Bot className="w-4 h-4" />, color: '#8b5cf6', label: 'Question Agent' },
-  verifier: { icon: <CheckCircle className="w-4 h-4" />, color: '#f59e0b', label: 'Verifier Agent' },
-  summarizer: { icon: <FileText className="w-4 h-4" />, color: '#ec4899', label: 'Summarizer Agent' },
+  rag: { icon: <Search className="w-4 h-4" />, color: '#3b82f6', label: 'Document Assistant' },
+  question: { icon: <Bot className="w-4 h-4" />, color: '#8b5cf6', label: 'Assistant' },
+  verifier: { icon: <CheckCircle className="w-4 h-4" />, color: '#f59e0b', label: 'Review Assistant' },
+  summarizer: { icon: <FileText className="w-4 h-4" />, color: '#ec4899', label: 'Summary Assistant' },
   default: { icon: <Image src="/logo.png" alt="AF" width={16} height={16} />, color: '#10a37f', label: 'AgentFlow' },
 }
 
@@ -45,16 +55,23 @@ export function Chat({
   messages,
   isLoading,
   onSendMessage,
+  onRetryMessage,
+  onOpenReport,
+  reportCount = 0,
+  isGeneratingReport = false,
   hasDocument,
   documentName,
-  sessionId,
   onNavigateHome,
+  onOpenSidebar,
+  onLoadTemplate,
 }: ChatProps) {
   const [input, setInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const activeDocumentLabel = toReadableDocumentName(documentName)
+  const sendableMessage = normalizeChatInput(input, isLoading)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -69,8 +86,8 @@ export function Chat({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
-    onSendMessage(input.trim())
+    if (!sendableMessage) return
+    onSendMessage(sendableMessage)
     setInput('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -126,7 +143,17 @@ export function Chat({
         <div className="max-w-3xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {onOpenSidebar && (
+                  <button
+                    type="button"
+                    onClick={onOpenSidebar}
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 md:hidden"
+                    aria-label="Open sidebar"
+                  >
+                    <PanelLeft className="w-4 h-4" />
+                  </button>
+                )}
                 {onNavigateHome && (
                   <>
                     <button
@@ -143,20 +170,26 @@ export function Chat({
                   </>
                 )}
                 <h2 className="font-display text-sm font-semibold text-zinc-100 tracking-tight">
-                  Chat workspace
+                  Workspace
                 </h2>
               </div>
               <p className="text-xs text-zinc-500 mt-1 leading-relaxed max-w-xl">
-                Your file is chunked and embedded on the server. Each question can trigger{' '}
-                <span className="text-zinc-400">retrieval (RAG)</span>, then an{' '}
-                <span className="text-zinc-400">LLM answer</span>. Badges show which agent handled the
-                reply.
+                Ask questions, get summaries, and turn uploaded documents into useful next steps for your team.
               </p>
             </div>
-            {sessionId && (
-              <div className="text-[10px] font-mono text-zinc-600 bg-zinc-900/80 px-2 py-1 rounded border border-white/[0.06] shrink-0 self-start">
-                Session · {sessionId.slice(0, 8)}…
-              </div>
+            {onOpenReport && (
+              <button
+                type="button"
+                onClick={onOpenReport}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800/80 self-start"
+              >
+                <ClipboardList className="w-3.5 h-3.5 text-[#10a37f]" />
+                {isGeneratingReport
+                  ? 'Refreshing brief...'
+                  : reportCount > 0
+                    ? `Decision brief (${reportCount})`
+                    : 'Decision brief'}
+              </button>
             )}
           </div>
 
@@ -172,15 +205,14 @@ export function Chat({
               {hasDocument ? (
                 <>
                   <span className="font-medium text-zinc-200">Active document: </span>
-                  <span className="text-zinc-400">{documentName}</span>
-                  <span className="text-zinc-500">. Answers can cite retrieved passages.</span>
+                  <span className="text-zinc-400">{activeDocumentLabel}</span>
+                  <span className="text-zinc-500">. Answers will stay grounded in this file when relevant.</span>
                 </>
               ) : (
                 <>
-                  <span className="font-medium text-amber-200/95">No document in this chat yet. </span>
+                  <span className="font-medium text-amber-200/95">Welcome! Upload your first document to get started. </span>
                   <span className="text-amber-100/70">
-                    Use the left panel to upload CSV, Excel, PDF, or text so answers are grounded in
-                    your data.
+                    You can also load a ready-made template from the left panel if you want a guided example.
                   </span>
                 </>
               )}
@@ -198,20 +230,27 @@ export function Chat({
                   <Image src="/logo.png" alt="AgentFlow" width={56} height={56} className="object-cover" />
                 </div>
                 <h1 className="font-display text-xl sm:text-2xl font-semibold text-zinc-100 mb-2">
-                  {hasDocument ? `Ready to analyze “${documentName}”` : 'Start the demo'}
+                  {hasDocument
+                    ? `Ready to work with “${activeDocumentLabel}”`
+                    : 'Welcome! Upload your first document to get started.'}
                 </h1>
                 <p className="text-sm text-zinc-400 leading-relaxed">
                   {hasDocument
-                    ? 'Type a question below or pick a starter. The backend will search your document, then stream a reply.'
-                    : 'Upload a file in the sidebar first, or ask a general question to see how routing works.'}
+                    ? 'Ask a question below or start with a suggested prompt. AgentFlow will use the active document to shape the answer.'
+                    : 'Start with your own file or pick a template to see a polished, business-friendly workspace in action.'}
                 </p>
               </div>
 
-              <ol className="space-y-3 mb-8 text-left">
+              <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-4 sm:p-5 mb-6">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500 mb-4">
+                  <Wand2 className="w-4 h-4 text-[#10a37f]" />
+                  Getting started
+                </div>
+                <ol className="space-y-3 text-left">
                 {[
-                  { n: '1', t: 'Add data', d: 'Upload or select a document in the left panel.' },
-                  { n: '2', t: 'Ask in English', d: 'Sales, finance, ops, same as you’d ask a colleague.' },
-                  { n: '3', t: 'Read the reply', d: 'Expand “sources” when RAG cites chunks from your file.' },
+                  { n: '1', t: 'Choose a starting point', d: hasDocument ? 'Use the suggested prompts below to explore the active document.' : 'Upload a document or load a template from the left rail.' },
+                  { n: '2', t: 'Ask for a business outcome', d: 'Request summaries, action items, risks, follow-ups, or ready-to-share copy.' },
+                  { n: '3', t: 'Review the answer', d: 'Check the response, follow the cited sources when available, and retry if you need a second pass.' },
                 ].map((row) => (
                   <li
                     key={row.n}
@@ -226,17 +265,46 @@ export function Chat({
                     </div>
                   </li>
                 ))}
-              </ol>
+                </ol>
+              </div>
+
+              {!hasDocument && onLoadTemplate && (
+                <>
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-600 text-center mb-3">
+                    Start with a template
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 mb-8">
+                    {WORKSPACE_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => onLoadTemplate(template.id)}
+                        className="rounded-xl border border-white/[0.08] bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:bg-zinc-800/80 hover:border-[#10a37f]/35"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-zinc-100">{template.name}</p>
+                            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{template.description}</p>
+                          </div>
+                          <span className="rounded-full border border-[#10a37f]/25 bg-[#10a37f]/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-[#5eead4]">
+                            {template.category}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <p className="text-[11px] uppercase tracking-wider text-zinc-600 text-center mb-3">
                 Suggested prompts
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
-                  hasDocument ? 'Summarize this report for leadership' : 'Summarize a business update',
-                  hasDocument ? 'What are the key metrics?' : 'Analyze a sales spreadsheet',
-                  hasDocument ? 'Find trends in the data' : 'Compare regional performance',
-                  hasDocument ? 'What risks or anomalies stand out?' : 'Extract action items from a report',
+                  hasDocument ? 'Summarize this update for leadership' : 'Summarize a weekly business update',
+                  hasDocument ? 'What should I act on first?' : 'Analyze a weekly sales spreadsheet',
+                  hasDocument ? 'What trends stand out?' : 'Compare regional performance this week',
+                  hasDocument ? 'What risks or anomalies stand out?' : 'Extract action items from an operations report',
                 ].map((prompt) => (
                   <button
                     key={prompt}
@@ -291,7 +359,7 @@ export function Chat({
                           }}
                         >
                           {message.sources && message.sources.length > 0
-                            ? 'RAG · sources below'
+                            ? 'Grounded answer'
                             : agentConfig.label}
                         </span>
                       )}
@@ -388,7 +456,7 @@ export function Chat({
                       <div className="mt-3 space-y-2 w-full">
                         {message.sources.map((source, idx) => (
                           <div
-                            key={idx}
+                            key={`${message.id}-${source.chunkIndex ?? idx}-${source.score}`}
                             className="rounded-lg border border-blue-500/25 bg-blue-950/20 p-3 text-left"
                           >
                             <div className="flex items-center justify-between mb-1.5">
@@ -404,6 +472,24 @@ export function Chat({
                             </p>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {!isUser && message.canRetry && message.retryPrompt && onRetryMessage && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (message.retryPrompt) {
+                              onRetryMessage(message.retryPrompt)
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-zinc-900/80 px-3 py-2 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800/80 disabled:opacity-60"
+                        >
+                          <RefreshCcw className="w-3.5 h-3.5" />
+                          Retry
+                        </button>
                       </div>
                     )}
                   </div>
@@ -446,7 +532,7 @@ export function Chat({
                 <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-xs text-zinc-500 border-b border-white/[0.04] pb-2 mb-1">
                   <Paperclip className="w-3.5 h-3.5 text-[#10a37f]" />
                   <span className="truncate">
-                    Context: <span className="text-zinc-400">{documentName}</span>
+                    Context: <span className="text-zinc-400">{activeDocumentLabel}</span>
                   </span>
                 </div>
               )}
@@ -475,7 +561,7 @@ export function Chat({
 
                 <button
                   type="submit"
-                  disabled={!input.trim() || isLoading}
+                  disabled={!sendableMessage}
                   className="p-2.5 rounded-xl bg-[#10a37f] hover:bg-[#0d8a6a] disabled:bg-zinc-700 disabled:cursor-not-allowed text-white transition-colors"
                   aria-label="Send message"
                 >
@@ -486,8 +572,7 @@ export function Chat({
           </form>
 
           <p className="text-[11px] text-zinc-600 text-center mt-2.5 leading-relaxed">
-            Backend: Groq + RAG retrieval · Labels reflect the agent path ·{' '}
-            <span className="text-zinc-500">Open System Insights in the sidebar for metrics</span>
+            Answers use your uploaded documents when available. Open Workspace Status for a simple health view or switch to Developer View for detailed metrics.
           </p>
         </div>
       </div>

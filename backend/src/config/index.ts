@@ -49,4 +49,9 @@ export const config = {
       .map((s) => s.trim())
       .filter(Boolean),
   },
+
+  persistence: {
+    provider: process.env.PERSISTENCE_PROVIDER || 'supabase-compatible',
+    databaseUrl: process.env.DATABASE_URL || '',
+  },
 };

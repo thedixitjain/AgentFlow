@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger.js';
 import { loadJsonFile, saveJsonFile } from './persistence.js';
-import type { Session, Document, Message, AgentState } from '../types/index.js';
+import type { Session, Document, Message, AgentState, WorkspaceReport } from '../types/index.js';
 
 interface PersistedSession {
   id: string;
@@ -16,6 +16,7 @@ interface PersistedSession {
     };
   }>;
   messages: Array<Omit<Message, 'timestamp'> & { timestamp: string }>;
+  reports?: Array<Omit<WorkspaceReport, 'generatedAt'> & { generatedAt: string }>;
   agentStates: Record<string, AgentState>;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +50,10 @@ class SessionService {
           ...message,
           timestamp: new Date(message.timestamp),
         })),
+        reports: (session.reports || []).map(report => ({
+          ...report,
+          generatedAt: new Date(report.generatedAt),
+        })),
         agentStates: session.agentStates,
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt),
@@ -73,6 +78,10 @@ class SessionService {
         ...message,
         timestamp: message.timestamp.toISOString(),
       })),
+      reports: session.reports.map(report => ({
+        ...report,
+        generatedAt: report.generatedAt.toISOString(),
+      })),
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
     }));
@@ -86,6 +95,7 @@ class SessionService {
       workspaceId,
       documents: [],
       messages: [],
+      reports: [],
       agentStates: {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -191,6 +201,29 @@ class SessionService {
     this.persist();
 
     return session;
+  }
+
+  addReport(sessionId: string, report: WorkspaceReport): WorkspaceReport | null {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    session.reports = [report, ...session.reports].slice(0, 10);
+    session.updatedAt = new Date();
+    this.persist();
+
+    logger.info('Report added to session', {
+      sessionId,
+      reportId: report.id,
+      reportTitle: report.title,
+    });
+
+    return report;
+  }
+
+  getReports(sessionId: string): WorkspaceReport[] {
+    const session = this.sessions.get(sessionId);
+    if (!session) return [];
+    return session.reports;
   }
 
   getDocument(sessionId: string, documentId: string): Document | null {

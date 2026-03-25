@@ -27,12 +27,17 @@ export default function ShowcaseLandingPage() {
     <Landing
       onStart={noop}
       onFileUpload={noop}
+      onUploadError={() => {}}
+      onLoadTemplate={noop}
+      onAuthClick={() => {}}
+      onSignOut={() => {}}
       recentChats={recentChats}
       onLoadChat={noop}
       errorMessage={null}
       onDismissError={() => {}}
       configWarning={false}
-      configuredApiUrl="http://localhost:4000/api"
+      persistenceStatus={null}
+      authUser={null}
     />
   )
 }
