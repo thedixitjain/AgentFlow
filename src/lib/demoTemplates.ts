@@ -52,8 +52,7 @@ export const WORKSPACE_TEMPLATES: WorkspaceTemplateSeed[] = [
       name: 'sales-analyst-template.csv',
       type: 'csv',
       size: SALES_DATA_CSV.length,
-      content: SALES_DATA_CSV,
-      data: SALES_DATA_CSV.split('\n').slice(1).map((row) => {
+      data: SALES_DATA_CSV.split('\n').slice(1).filter(Boolean).map((row) => {
         const [Date, Product, Region, Revenue, Units, Channel] = row.split(',')
         return { Date, Product, Region, Revenue: Number(Revenue), Units: Number(Units), Channel }
       }),

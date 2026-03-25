@@ -279,6 +279,8 @@ export function Landing({
   }
 
   const isDisabled = Boolean(isLoadingTemplate) || isOpeningWorkspace || isUploading
+  /** Lock all template entry points while any template is loading (avoids double submits). */
+  const templateActionsLocked = isOpeningWorkspace || isUploading || isLoadingTemplate !== null
 
   const navItems = [
     { id: 'how-it-works', label: 'How it works' },
@@ -364,6 +366,13 @@ export function Landing({
                   {item.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => scrollToSection('use-cases')}
+                className="rounded-lg px-3 py-3 text-left text-zinc-300 hover:bg-white/[0.05]"
+              >
+                Browse templates
+              </button>
               <button
                 type="button"
                 onClick={() => void handleOpenWorkspace()}
@@ -521,7 +530,7 @@ export function Landing({
         </section>
 
         {/* ─── How it works ─────────────────────────────────────────────── */}
-        <section id="how-it-works">
+        <section id="how-it-works" className="scroll-mt-24">
           <div className="max-w-xl mb-10">
             <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">How it works</p>
             <h2 className="mt-3 font-display text-3xl font-semibold text-white">
@@ -540,7 +549,7 @@ export function Landing({
         </section>
 
         {/* ─── Agent architecture ───────────────────────────────────────── */}
-        <section id="agents">
+        <section id="agents" className="scroll-mt-24">
           <div className="max-w-xl mb-10">
             <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Architecture</p>
             <h2 className="mt-3 font-display text-3xl font-semibold text-white">
@@ -600,7 +609,7 @@ export function Landing({
         </section>
 
         {/* ─── Feature cards ────────────────────────────────────────────── */}
-        <section id="product" className="grid gap-5 md:grid-cols-3">
+        <section id="product" className="scroll-mt-24 grid gap-5 md:grid-cols-3">
           {[
             {
               icon: Bot,
@@ -635,7 +644,7 @@ export function Landing({
         </section>
 
         {/* ─── Use cases / Templates ────────────────────────────────────── */}
-        <section id="use-cases">
+        <section id="use-cases" className="scroll-mt-24">
           <div className="max-w-xl mb-10">
             <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Templates</p>
             <h2 className="mt-3 font-display text-3xl font-semibold text-white">
@@ -680,7 +689,7 @@ export function Landing({
                 <button
                   type="button"
                   onClick={() => void handleLoadTemplate(card.templateId)}
-                  disabled={isDisabled && isLoadingTemplate !== card.templateId}
+                  disabled={templateActionsLocked}
                   className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#5eead4] hover:text-white transition-colors disabled:opacity-50"
                 >
                   {isLoadingTemplate === card.templateId ? (
@@ -704,7 +713,7 @@ export function Landing({
                   key={template.id}
                   type="button"
                   onClick={() => void handleLoadTemplate(template.id)}
-                  disabled={isDisabled}
+                  disabled={templateActionsLocked}
                   className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3.5 text-left transition-colors hover:bg-black/35 hover:border-[#10a37f]/30 disabled:opacity-50"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -725,7 +734,7 @@ export function Landing({
         </section>
 
         {/* ─── Trust ────────────────────────────────────────────────────── */}
-        <section id="trust" className="grid gap-8 lg:grid-cols-[1fr_1fr] items-start">
+        <section id="trust" className="scroll-mt-24 grid gap-8 lg:grid-cols-[1fr_1fr] items-start">
           <div>
             <p className="text-[10px] uppercase tracking-[0.26em] text-zinc-600">Privacy &amp; security</p>
             <h2 className="mt-3 font-display text-3xl font-semibold text-white">
@@ -808,7 +817,7 @@ export function Landing({
           <div>
             <p className="text-sm font-semibold text-zinc-200">AgentFlow</p>
             <p className="mt-1 text-xs text-zinc-600 max-w-xs">
-              Multi-agent document intelligence — built with LangGraph, RAG pipelines, and Next.js.
+              Multi-agent document intelligence: RAG pipelines and Next.js.
             </p>
             <p className="mt-2 text-xs text-zinc-700">
               Built by{' '}

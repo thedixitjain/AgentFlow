@@ -343,10 +343,10 @@ export default function Home() {
     })
   }, [activeDocument, currentChatId, insights.length, showBusinessReport, showInsights, showLanding, showSystemInsights])
 
-  const handleFileUpload = useCallback(async (file: DocumentFile) => {
+  const handleFileUpload = useCallback(async (file: DocumentFile, sessionIdOverride?: string) => {
     setAppError(null)
     try {
-      const sessionId = await ensureSession()
+      const sessionId = sessionIdOverride ?? await ensureSession()
 
       const saved = await api.createParsedDocument(sessionId, {
         name: file.name,
@@ -390,15 +390,19 @@ export default function Home() {
   }, [pushToast])
 
   const handleLoadTemplate = useCallback(async (templateId: WorkspaceTemplateId) => {
+    setAppError(null)
     try {
       const template = getWorkspaceTemplate(templateId)
-      await handleFileUpload(buildWorkspaceTemplateDocument(templateId))
+      // Fresh session on landing; pass id into upload so we do not use a stale currentChatId
+      // from the closure before React re-renders after createNewSession.
+      const sessionIdOverride = showLanding ? await createNewSession() : undefined
+      await handleFileUpload(buildWorkspaceTemplateDocument(templateId), sessionIdOverride)
       pushToast(`${template.name} template loaded.`, 'success')
     } catch (error) {
       console.error('Failed to load template:', error)
-      reportAppError(error, 'We could not load that template. Please try again.')
+      reportAppError(error, 'We could not load that template. Check that the API is running, then try again.')
     }
-  }, [handleFileUpload, pushToast, reportAppError])
+  }, [createNewSession, handleFileUpload, pushToast, reportAppError, showLanding])
 
   const handleSendMessage = useCallback(async (content: string) => {
     setAppError(null)

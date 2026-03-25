@@ -328,10 +328,9 @@ router.post('/sessions/:sessionId/chat', async (req: Request, res: Response) => 
       ? sessionService.getDocument(sessionId, documentId)
       : session.documents[session.documents.length - 1];
 
-    if (document && !document.metadata.indexed) {
+    if (document && !document.metadata?.indexed) {
       await ragService.indexSessionDocument(sessionId, document);
-      document.metadata.indexed = true;
-      document.metadata.processedAt = new Date();
+      document.metadata = { ...document.metadata, indexed: true, processedAt: new Date() };
     }
 
     // Get conversation history
@@ -397,10 +396,9 @@ router.post('/sessions/:sessionId/chat/stream', async (req: Request, res: Respon
       ? sessionService.getDocument(sessionId, documentId)
       : session.documents[session.documents.length - 1];
 
-    if (document && !document.metadata.indexed) {
+    if (document && !document.metadata?.indexed) {
       await ragService.indexSessionDocument(sessionId, document);
-      document.metadata.indexed = true;
-      document.metadata.processedAt = new Date();
+      document.metadata = { ...document.metadata, indexed: true, processedAt: new Date() };
     }
 
     const history = session.messages.slice(-10).map(m => ({
