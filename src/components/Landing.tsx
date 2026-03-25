@@ -31,7 +31,7 @@ import {
   toUserFacingAppError,
 } from '@/lib/businessUx'
 
-const GITHUB_REPO_URL = 'https://github.com/thedixitjain/AgentFlow'
+const GITHUB_PROFILE_URL = 'https://github.com/thedixitjain'
 const LINKEDIN_PROFILE_URL = 'https://www.linkedin.com/in/thedixitjain'
 
 interface LandingProps {
@@ -604,7 +604,7 @@ export function Landing({
           <div className="flex flex-wrap gap-6">
             <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
             <a href="/security" className="hover:text-white transition-colors">Security &amp; data</a>
-            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href={GITHUB_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
             <a href={LINKEDIN_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">LinkedIn</a>
           </div>
         </div>
