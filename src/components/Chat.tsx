@@ -178,32 +178,63 @@ export function Chat({
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6 sm:p-10">
-            <div className="max-w-md w-full text-center">
-              <div className="w-10 h-10 mx-auto mb-4 rounded-xl overflow-hidden opacity-90 shadow-lg shadow-[#10a37f]/15">
-                <Image src="/logo.png" alt="" width={40} height={40} className="object-cover" />
+            <div className="max-w-lg w-full">
+              {/* Logo + title */}
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-14 h-14 mx-auto mb-5 rounded-2xl overflow-hidden shadow-xl shadow-[#10a37f]/20 ring-1 ring-white/10">
+                  <Image src="/logo.png" alt="" width={56} height={56} className="object-cover" />
+                </div>
+                <h2 className="text-lg font-semibold text-zinc-100">
+                  {hasDocument
+                    ? `Analyzing ${activeDocumentLabel}`
+                    : 'Welcome to AgentFlow'}
+                </h2>
+                <p className="mt-2 text-sm text-zinc-500 max-w-xs leading-relaxed">
+                  {hasDocument
+                    ? 'Your document is indexed and ready. Ask anything about its content.'
+                    : 'Upload a document from the sidebar to unlock document-grounded AI answers.'}
+                </p>
               </div>
 
-              <p className="text-sm font-medium text-zinc-200">
-                {hasDocument
-                  ? `Ready to analyze ${activeDocumentLabel}`
-                  : 'Upload a file or try a sample template'}
-              </p>
-              <p className="mt-1.5 text-xs text-zinc-600">
-                {hasDocument
-                  ? 'Ask anything—your query is routed to the best agent.'
-                  : 'Add a document from the sidebar to ground your answers.'}
-              </p>
+              {/* Feature grid (when no document) */}
+              {!hasDocument && (
+                <div className="grid grid-cols-2 gap-3 mb-8">
+                  {[
+                    { icon: <Search className="w-4 h-4" />, color: '#3b82f6', title: 'RAG Search', desc: 'Semantic retrieval from your file' },
+                    { icon: <Bot className="w-4 h-4" />, color: '#8b5cf6', title: 'Multi-Agent', desc: '5 specialized AI agents' },
+                    { icon: <BookOpen className="w-4 h-4" />, color: '#10a37f', title: 'Source Citations', desc: 'Every answer is cited' },
+                    { icon: <FileText className="w-4 h-4" />, color: '#ec4899', title: 'Decision Briefs', desc: 'Exportable summaries' },
+                  ].map((feat) => (
+                    <div
+                      key={feat.title}
+                      className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-zinc-900/40 p-3.5"
+                    >
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${feat.color}15`, color: feat.color }}
+                      >
+                        {feat.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-zinc-200">{feat.title}</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-600 leading-snug">{feat.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {/* Suggested prompts */}
+              <div className="flex flex-wrap justify-center gap-2">
                 {suggestedPrompts.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => onSendMessage(prompt)}
-                    className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 px-3 py-1.5 rounded-lg border border-white/[0.07] hover:bg-white/[0.05] transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 px-3.5 py-2 rounded-xl border border-white/[0.07] hover:bg-white/[0.05] hover:border-[#10a37f]/25 transition-all"
                   >
                     {prompt}
-                    <ArrowRight className="w-3 h-3 opacity-50" />
+                    <ArrowRight className="w-3 h-3 opacity-40" />
                   </button>
                 ))}
               </div>
@@ -359,16 +390,24 @@ export function Chat({
 
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-3 sm:gap-4 animate-fade-in mb-6">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-zinc-800 border border-white/10 overflow-hidden">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-zinc-800/80 border border-white/10 overflow-hidden">
                   <Image src="/logo.png" alt="Logo" width={40} height={40} className="object-cover opacity-80" />
                 </div>
-                <div className="flex items-center gap-2 pt-2">
-                  <span className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" style={{ animationDelay: '0.15s' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" style={{ animationDelay: '0.3s' }} />
-                  </span>
-                  <span className="text-xs text-zinc-500">Routing to agent…</span>
+                <div className="flex flex-col gap-1.5 pt-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" style={{ animationDelay: '0.2s' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10a37f] animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    </span>
+                    <span className="text-xs text-zinc-500">Routing to best agent…</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1 w-32 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="h-full w-1/2 rounded-full bg-[#10a37f]/40 animate-shimmer" />
+                    </div>
+                    <span className="text-[10px] text-zinc-700">Indexing context</span>
+                  </div>
                 </div>
               </div>
             )}

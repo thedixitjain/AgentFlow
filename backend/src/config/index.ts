@@ -24,9 +24,9 @@ export const config = {
     },
     openai: {
       apiKey: process.env.OPENAI_API_KEY || '',
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       maxTokens: 4096,
-      costPer1kTokens: 0.00015,
+      costPer1kTokens: 0.005,
     },
   },
 

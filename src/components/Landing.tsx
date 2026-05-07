@@ -22,6 +22,9 @@ import {
   Workflow,
   X,
   Zap,
+  BarChart3,
+  Clock,
+  Layers,
 } from 'lucide-react'
 import type { DocumentFile, ChatHistory } from '@/lib/types'
 import { WORKSPACE_TEMPLATES, type WorkspaceTemplateId } from '@/lib/demoTemplates'
@@ -292,7 +295,13 @@ export function Landing({
     <div className="min-h-screen bg-[#0c0c0f] text-zinc-100 relative overflow-hidden">
       {/* Background layers */}
       <div className="pointer-events-none fixed inset-0 bg-mesh-hero" aria-hidden />
-      <div className="pointer-events-none fixed inset-0 bg-grid-faint opacity-40" aria-hidden />
+      <div className="pointer-events-none fixed inset-0 bg-grid-faint opacity-30" aria-hidden />
+      {/* Hero ambient orb */}
+      <div
+        className="pointer-events-none fixed top-[-10%] left-[30%] w-[600px] h-[600px] rounded-full opacity-[0.06] blur-3xl animate-glow-pulse"
+        style={{ background: 'radial-gradient(circle, #10a37f 0%, #3b82f6 50%, transparent 70%)' }}
+        aria-hidden
+      />
 
       {/* ─── Nav ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0c0c0f]/80 backdrop-blur-xl">
@@ -337,9 +346,9 @@ export function Landing({
               type="button"
               onClick={() => void handleOpenWorkspace()}
               disabled={isDisabled}
-              className="rounded-lg bg-[#10a37f] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-50"
+              className="rounded-lg bg-[#10a37f] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#0d8a6a] disabled:opacity-50 shadow-md shadow-[#10a37f]/25 hover:shadow-[#10a37f]/40"
             >
-              {isOpeningWorkspace ? 'Opening…' : 'Open workspace'}
+              {isOpeningWorkspace ? 'Opening…' : 'Try AgentFlow'}
             </button>
           </div>
 
@@ -420,7 +429,7 @@ export function Landing({
 
         {/* ─── Hero ─────────────────────────────────────────────────────── */}
         <section className="grid lg:grid-cols-[1.15fr_0.85fr] gap-12 items-center">
-          <div className="max-w-2xl">
+          <div className="max-w-2xl animate-fade-in-up">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-[#10a37f]/30 bg-[#10a37f]/10 px-3.5 py-1.5 text-xs font-medium text-[#5eead4]">
               <Sparkles className="w-3 h-3" />
@@ -428,7 +437,8 @@ export function Landing({
             </div>
 
             <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-[3.5rem] font-semibold leading-[1.08] tracking-tight text-white">
-              Turn business documents into decisions.
+              Turn documents into{' '}
+              <span className="text-gradient-warm">actionable decisions.</span>
             </h1>
 
             <p className="mt-5 max-w-lg text-lg text-zinc-400 leading-relaxed">
@@ -440,22 +450,22 @@ export function Landing({
                 type="button"
                 onClick={() => void handleOpenWorkspace()}
                 disabled={isDisabled}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#10a37f] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0d8a6a] disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#10a37f] px-5 py-3.5 text-sm font-semibold text-white btn-glow hover:bg-[#0d8a6a] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isOpeningWorkspace ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <PlayCircle className="w-4 h-4" />
                 )}
-                Open workspace
+                {isOpeningWorkspace ? 'Opening workspace…' : 'Try it free'}
               </button>
               <button
                 type="button"
                 onClick={() => scrollToSection('use-cases')}
                 disabled={isDisabled}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.03] px-5 py-3 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.06] disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.04] px-5 py-3.5 text-sm font-medium text-zinc-100 transition-all hover:bg-white/[0.08] hover:border-white/[0.18] disabled:opacity-60"
               >
-                <ArrowRight className="w-4 h-4 text-[#5eead4]" />
+                <Layers className="w-4 h-4 text-[#5eead4]" />
                 Browse templates
               </button>
             </div>
@@ -476,7 +486,7 @@ export function Landing({
           </div>
 
           {/* ─── Upload zone card ─────────────────────────────────────── */}
-          <div className="rounded-[28px] border border-white/[0.09] bg-zinc-950/80 p-5 shadow-2xl shadow-black/50 backdrop-blur">
+          <div className="rounded-[28px] border border-white/[0.09] bg-zinc-950/80 p-5 shadow-2xl shadow-black/50 backdrop-blur animate-slide-in-right" style={{ animationDelay: '0.15s' }}>
             <div
               {...getRootProps()}
               className={`rounded-2xl border border-dashed px-5 py-8 text-center cursor-pointer transition-all ${
@@ -529,6 +539,33 @@ export function Landing({
           </div>
         </section>
 
+        {/* ─── Stats bar ────────────────────────────────────────────────── */}
+        <section className="-mt-8">
+          <div className="rounded-2xl border border-white/[0.07] bg-zinc-900/40 backdrop-blur-sm overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-white/[0.06]">
+              {[
+                { icon: <Zap className="w-4 h-4" />, value: '5', label: 'Specialized agents', color: '#10a37f' },
+                { icon: <FileText className="w-4 h-4" />, value: '6+', label: 'File formats supported', color: '#3b82f6' },
+                { icon: <Search className="w-4 h-4" />, value: 'RAG', label: 'Semantic retrieval', color: '#8b5cf6' },
+                { icon: <Clock className="w-4 h-4" />, value: '< 3s', label: 'Avg. response time', color: '#f59e0b' },
+              ].map((stat) => (
+                <div key={stat.label} className="stat-card flex items-center gap-3 px-5 py-4">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${stat.color}18`, color: stat.color }}
+                  >
+                    {stat.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold text-white leading-none">{stat.value}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500 truncate">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ─── How it works ─────────────────────────────────────────────── */}
         <section id="how-it-works" className="scroll-mt-24">
           <div className="max-w-xl mb-10">
@@ -538,10 +575,17 @@ export function Landing({
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
-            {HOW_IT_WORKS.map(({ step, title, body }) => (
-              <div key={step} className="relative rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 group hover:border-white/[0.14] transition-colors">
-                <p className="font-display text-4xl font-bold text-zinc-800 group-hover:text-zinc-700 transition-colors">{step}</p>
-                <h3 className="mt-4 text-base font-semibold text-white">{title}</h3>
+            {HOW_IT_WORKS.map(({ step, title, body }, i) => (
+              <div
+                key={step}
+                className="relative rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 card-hover animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="font-display text-3xl font-bold text-zinc-800">{step}</span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-zinc-800 to-transparent" />
+                </div>
+                <h3 className="text-base font-semibold text-white">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">{body}</p>
               </div>
             ))}
@@ -561,45 +605,62 @@ export function Landing({
           </div>
 
           {/* Desktop: horizontal pipeline */}
-          <div className="hidden md:grid md:grid-cols-5 gap-0 relative">
-            {/* Connector line */}
-            <div className="absolute top-[2.25rem] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-zinc-700 to-transparent" aria-hidden />
-            {AGENTS.map((agent, i) => (
-              <div key={agent.key} className="flex flex-col items-center text-center px-2 relative">
+          <div className="hidden md:block relative rounded-3xl border border-white/[0.08] bg-zinc-900/25 p-8">
+            {/* Animated connector track */}
+            <div className="absolute top-[4.25rem] left-[12%] right-[12%] h-px overflow-hidden" aria-hidden>
+              <div className="h-full bg-gradient-to-r from-transparent via-zinc-600 to-transparent" />
+              <div className="absolute inset-0 animate-shimmer" />
+            </div>
+            <div className="grid grid-cols-5 gap-0 relative">
+              {AGENTS.map((agent, i) => (
                 <div
-                  className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center mb-4 shadow-lg"
-                  style={{ backgroundColor: `${agent.color}1a`, boxShadow: `0 0 0 1px ${agent.color}30` }}
+                  key={agent.key}
+                  className="flex flex-col items-center text-center px-2 relative animate-fade-in-up"
+                  style={{ animationDelay: `${i * 0.08}s` }}
                 >
-                  <span style={{ color: agent.color }}>{agent.icon}</span>
-                  {i < AGENTS.length - 1 && (
-                    <div
-                      className="absolute -right-[calc(50%+0.375rem)] top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-20"
-                      aria-hidden
-                    >
-                      <ArrowRight className="w-3 h-3 text-zinc-600" />
-                    </div>
-                  )}
+                  <div
+                    className="relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-lg transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: `${agent.color}15`,
+                      boxShadow: `0 0 0 1px ${agent.color}25, 0 4px 12px ${agent.color}15`,
+                    }}
+                  >
+                    <span style={{ color: agent.color }}>{agent.icon}</span>
+                    {i < AGENTS.length - 1 && (
+                      <div
+                        className="absolute -right-[calc(50%+0.5rem)] top-1/2 -translate-y-1/2 z-20"
+                        aria-hidden
+                      >
+                        <ArrowRight className="w-3 h-3 text-zinc-600" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-100">{agent.name}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 max-w-[120px]">{agent.desc}</p>
                 </div>
-                <p className="text-sm font-semibold text-zinc-100">{agent.name}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{agent.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Mobile: vertical list */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-2.5">
             {AGENTS.map((agent, i) => (
-              <div key={agent.key} className="flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4">
+              <div key={agent.key} className="flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-zinc-900/35 p-4 card-hover">
                 <div
-                  className="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${agent.color}1a`, boxShadow: `0 0 0 1px ${agent.color}30` }}
+                  className="mt-0.5 w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${agent.color}15`, boxShadow: `0 0 0 1px ${agent.color}25` }}
                 >
                   <span style={{ color: agent.color }}>{agent.icon}</span>
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-zinc-100">{agent.name}</p>
-                    <span className="text-[10px] text-zinc-600 font-medium">0{i + 1}</span>
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+                      style={{ backgroundColor: `${agent.color}15`, color: agent.color }}
+                    >
+                      0{i + 1}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-500">{agent.desc}</p>
                 </div>
@@ -624,16 +685,19 @@ export function Landing({
               body: 'Skip the blank-page problem with pre-loaded sample files for sales, support, and content work.',
             },
             {
-              icon: FileText,
+              icon: BarChart3,
               color: '#3b82f6',
               title: 'Shareable decision briefs',
               body: 'Generate a structured summary with highlights, risks, actions, and follow-up questions in one click.',
             },
           ].map(({ icon: Icon, color, title, body }) => (
-            <div key={title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 hover:border-white/[0.14] transition-colors">
+            <div
+              key={title}
+              className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 card-hover"
+            >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
-                style={{ backgroundColor: `${color}18` }}
+                className="w-11 h-11 rounded-2xl flex items-center justify-center mb-5"
+                style={{ backgroundColor: `${color}15`, boxShadow: `0 0 0 1px ${color}20` }}
               >
                 <Icon className="w-5 h-5" style={{ color }} />
               </div>
@@ -659,18 +723,21 @@ export function Landing({
             {[
               {
                 title: 'Sales Analyst',
+                badge: 'Revenue',
                 body: 'Load structured revenue data and surface KPIs, trends, and next actions for leadership.',
                 templateId: 'sales-analyst' as WorkspaceTemplateId,
                 color: '#10a37f',
               },
               {
                 title: 'Support Copilot',
+                badge: 'Operations',
                 body: 'Turn a support brief into priority queues, escalation plans, and grounded response drafts.',
                 templateId: 'support-copilot' as WorkspaceTemplateId,
                 color: '#3b82f6',
               },
               {
                 title: 'Content Writer',
+                badge: 'Marketing',
                 body: 'Start from a campaign brief and generate launch messaging with a reusable agent workflow.',
                 templateId: 'content-writer' as WorkspaceTemplateId,
                 color: '#8b5cf6',
@@ -678,19 +745,27 @@ export function Landing({
             ].map((card) => (
               <div
                 key={card.title}
-                className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 hover:border-white/[0.14] transition-colors flex flex-col"
+                className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-6 card-hover flex flex-col"
               >
-                <div
-                  className="w-2 h-2 rounded-full mb-5"
-                  style={{ backgroundColor: card.color }}
-                />
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${card.color}15` }}>
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: card.color }} />
+                  </div>
+                  <span
+                    className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-medium"
+                    style={{ backgroundColor: `${card.color}12`, color: card.color }}
+                  >
+                    {card.badge}
+                  </span>
+                </div>
                 <h3 className="font-display text-lg font-semibold text-white">{card.title}</h3>
                 <p className="mt-2.5 text-sm leading-relaxed text-zinc-400 flex-1">{card.body}</p>
                 <button
                   type="button"
                   onClick={() => void handleLoadTemplate(card.templateId)}
                   disabled={templateActionsLocked}
-                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#5eead4] hover:text-white transition-colors disabled:opacity-50"
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                  style={{ color: card.color }}
                 >
                   {isLoadingTemplate === card.templateId ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -704,27 +779,32 @@ export function Landing({
           </div>
 
           {/* Full template picker */}
-          <div className="mt-8 rounded-[28px] border border-white/[0.08] bg-gradient-to-br from-[#10a37f]/10 via-zinc-900/60 to-zinc-950 px-6 py-7 sm:px-8">
-            <p className="text-sm font-semibold text-zinc-200">All templates</p>
-            <p className="mt-1 text-xs text-zinc-500">Pick one and start exploring right away.</p>
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
+          <div className="mt-8 rounded-[28px] border border-[#10a37f]/15 bg-gradient-to-br from-[#10a37f]/8 via-zinc-900/60 to-zinc-950 px-6 py-7 sm:px-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-1 h-5 rounded-full bg-[#10a37f]" />
+              <div>
+                <p className="text-sm font-semibold text-zinc-100">All templates</p>
+                <p className="text-xs text-zinc-500">Pick one and start exploring right away.</p>
+              </div>
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-3">
               {WORKSPACE_TEMPLATES.map((template) => (
                 <button
                   key={template.id}
                   type="button"
                   onClick={() => void handleLoadTemplate(template.id)}
                   disabled={templateActionsLocked}
-                  className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3.5 text-left transition-colors hover:bg-black/35 hover:border-[#10a37f]/30 disabled:opacity-50"
+                  className="rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3.5 text-left transition-all hover:bg-black/35 hover:border-[#10a37f]/25 hover:shadow-sm disabled:opacity-50 group"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-zinc-100 truncate">{template.name}</p>
+                      <p className="text-sm font-medium text-zinc-100 truncate group-hover:text-white transition-colors">{template.name}</p>
                       <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 line-clamp-2">{template.description}</p>
                     </div>
                     {isLoadingTemplate === template.id ? (
                       <Loader2 className="w-4 h-4 shrink-0 animate-spin text-[#10a37f]" />
                     ) : (
-                      <ArrowRight className="w-4 h-4 shrink-0 text-zinc-600" />
+                      <ArrowRight className="w-4 h-4 shrink-0 text-zinc-700 group-hover:text-[#10a37f] transition-colors" />
                     )}
                   </div>
                 </button>
@@ -774,10 +854,10 @@ export function Landing({
                 body: 'Every response shows which passages it drew from.',
               },
             ].map((item) => (
-              <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-5">
+              <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-zinc-900/35 p-5 card-hover">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center mb-3"
-                  style={{ backgroundColor: `${item.color}18` }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: `${item.color}15`, boxShadow: `0 0 0 1px ${item.color}20` }}
                 >
                   <span style={{ color: item.color }}>{item.icon}</span>
                 </div>
@@ -809,15 +889,61 @@ export function Landing({
             </div>
           </section>
         )}
+        {/* ─── Bottom CTA ───────────────────────────────────────────────── */}
+        <section>
+          <div className="relative rounded-[28px] overflow-hidden border border-[#10a37f]/20 bg-gradient-to-br from-[#10a37f]/12 via-zinc-900/80 to-zinc-950">
+            {/* Background glow */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-[#10a37f]/10 blur-3xl pointer-events-none" aria-hidden />
+            <div className="relative z-10 px-8 py-12 sm:px-12 text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#10a37f]/30 bg-[#10a37f]/10 px-3.5 py-1.5 text-xs font-medium text-[#5eead4] mb-6">
+                <Sparkles className="w-3 h-3" />
+                Ready in under 60 seconds
+              </div>
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold text-white">
+                Start analyzing your data today.
+              </h2>
+              <p className="mt-4 text-base text-zinc-400 max-w-md mx-auto leading-relaxed">
+                Upload any business document and ask your first question. No setup, no prompting, no hallucinations.
+              </p>
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleOpenWorkspace()}
+                  disabled={isDisabled}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#10a37f] px-7 py-3.5 text-sm font-semibold text-white btn-glow hover:bg-[#0d8a6a] disabled:opacity-60 w-full sm:w-auto justify-center"
+                >
+                  {isOpeningWorkspace ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                  {isOpeningWorkspace ? 'Opening…' : 'Open workspace free'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('use-cases')}
+                  disabled={isDisabled}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-7 py-3.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.05] transition-all w-full sm:w-auto justify-center"
+                >
+                  Browse templates
+                  <ArrowRight className="w-4 h-4 text-zinc-500" />
+                </button>
+              </div>
+              <p className="mt-5 text-xs text-zinc-600">No account required · Works with any business file</p>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       {/* ─── Footer ───────────────────────────────────────────────────────── */}
       <footer className="relative z-10 border-t border-white/[0.06] px-4 sm:px-6 lg:px-8 py-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <p className="text-sm font-semibold text-zinc-200">AgentFlow</p>
-            <p className="mt-1 text-xs text-zinc-600 max-w-xs">
-              Multi-agent document intelligence: RAG pipelines and Next.js.
+            <div className="flex items-center gap-2.5">
+              <div className="relative w-7 h-7 rounded-lg overflow-hidden shadow-md shadow-[#10a37f]/20">
+                <Image src="/logo.png" alt="AgentFlow" fill className="object-cover" />
+              </div>
+              <p className="text-sm font-semibold text-zinc-200">AgentFlow</p>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 max-w-xs leading-relaxed">
+              Multi-agent document intelligence with RAG, semantic search, and structured decision briefs.
             </p>
             <p className="mt-2 text-xs text-zinc-700">
               Built by{' '}
@@ -825,13 +951,13 @@ export function Landing({
                 href={LINKEDIN_PROFILE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-zinc-500 hover:text-[#5eead4] transition-colors"
               >
                 Dixit Jain
               </a>
             </p>
           </div>
-          <div className="flex flex-wrap gap-5 text-sm text-zinc-600">
+          <div className="flex flex-wrap gap-5 text-xs text-zinc-600">
             <a href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy</a>
             <a href="/security" className="hover:text-zinc-300 transition-colors">Security</a>
             <a href={GITHUB_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300 transition-colors">GitHub</a>

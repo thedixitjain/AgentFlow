@@ -50,10 +50,10 @@ class LLMService {
     if (preferred && available.includes(preferred)) {
       return preferred;
     }
-    // Default priority: groq > gemini > openai
+    // Default priority: openai > groq > gemini
+    if (available.includes('openai')) return 'openai';
     if (available.includes('groq')) return 'groq';
-    if (available.includes('gemini')) return 'gemini';
-    return 'openai';
+    return 'gemini';
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
