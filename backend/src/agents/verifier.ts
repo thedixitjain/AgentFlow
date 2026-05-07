@@ -53,7 +53,6 @@ Be rigorous and factual. Only mark as verified if there's clear evidence.`;
     }
 
     const response = await llmService.complete({
-      provider: 'groq',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

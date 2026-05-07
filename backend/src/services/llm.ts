@@ -45,8 +45,9 @@ class LLMService {
   private selectProvider(preferred?: LLMProvider): LLMProvider {
     const available = this.getAvailableProviders();
     if (available.length === 0) {
-      throw new Error('No LLM providers configured. Set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY in your environment.');
+      throw new Error('No LLM API key configured. Set OPENAI_API_KEY (recommended), GROQ_API_KEY, or GEMINI_API_KEY on the server.');
     }
+    // Honour explicit preference only if that provider is available
     if (preferred && available.includes(preferred)) {
       return preferred;
     }

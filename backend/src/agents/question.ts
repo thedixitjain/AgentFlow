@@ -51,7 +51,6 @@ Guidelines:
     ];
 
     return llmService.complete({
-      provider: 'groq',
       messages,
       temperature: 0.3,
     });

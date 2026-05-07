@@ -364,6 +364,8 @@ class ApiClient {
 
     let streamError: string | null = null;
     let completed = false;
+    let contentReceived = false;
+    let lastAgentUsed = 'assistant';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -381,6 +383,7 @@ class ApiClient {
             const parsed = JSON.parse(data);
             if (parsed.content) {
               onChunk(parsed.content);
+              contentReceived = true;
             }
             if (parsed.sources && onSources) {
               onSources(parsed.sources);
@@ -389,8 +392,11 @@ class ApiClient {
               onError(parsed.error);
               streamError = parsed.error;
             }
-            if (parsed.done && parsed.agentUsed) {
-              onComplete(parsed.agentUsed);
+            if (parsed.agentUsed) {
+              lastAgentUsed = parsed.agentUsed;
+            }
+            if (parsed.done) {
+              onComplete(parsed.agentUsed || lastAgentUsed);
               completed = true;
             }
           } catch {
@@ -402,6 +408,12 @@ class ApiClient {
 
     if (streamError) {
       throw new Error(streamError);
+    }
+
+    // If content was streamed but done event was missed, recover gracefully
+    if (!completed && contentReceived) {
+      onComplete(lastAgentUsed);
+      completed = true;
     }
 
     if (!completed) {

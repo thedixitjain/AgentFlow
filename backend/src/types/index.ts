@@ -114,7 +114,7 @@ export interface Session {
 export type LLMProvider = 'gemini' | 'groq' | 'openai';
 
 export interface LLMRequest {
-  provider: LLMProvider;
+  provider?: LLMProvider;
   messages: Array<{ role: string; content: string }>;
   maxTokens?: number;
   temperature?: number;

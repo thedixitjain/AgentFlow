@@ -221,7 +221,6 @@ class ReportingService {
 
     try {
       const response = await llmService.complete({
-        provider: 'groq',
         messages,
         temperature: 0.2,
         maxTokens: 900,
