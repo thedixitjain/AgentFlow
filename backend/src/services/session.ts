@@ -25,6 +25,7 @@ interface PersistedSession {
 class SessionService {
   private sessions: Map<string, Session>;
   private readonly defaultWorkspaceId = 'local-workspace';
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.sessions = this.loadSessions();
@@ -63,7 +64,16 @@ class SessionService {
     return sessions;
   }
 
+  private persistDebounced(): void {
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => this.persist(), 1500);
+  }
+
   private persist(): void {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
     const serialized: PersistedSession[] = Array.from(this.sessions.values()).map(session => ({
       ...session,
       documents: session.documents.map(document => ({
@@ -198,7 +208,7 @@ class SessionService {
 
     session.messages.push(message);
     session.updatedAt = new Date();
-    this.persist();
+    this.persistDebounced(); // Messages arrive in bursts — coalesce writes
 
     return session;
   }

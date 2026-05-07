@@ -94,7 +94,7 @@ class VectorStore {
     const existing = this.documentIndex.get(documentId) || [];
     existing.push(vectorDoc.id);
     this.documentIndex.set(documentId, existing);
-    this.persist();
+    // Persist is called by the caller (addDocumentChunks) to batch all chunk writes into one.
 
     logger.debug('Added vector document', {
       vectorId: vectorDoc.id,
@@ -119,6 +119,8 @@ class VectorStore {
       const doc = await this.addDocument(documentId, chunks[i], i, metadata);
       vectorDocs.push(doc);
     }
+
+    this.persist(); // One write after all chunks are indexed
 
     logger.info('Added document chunks to vector store', {
       documentId,
